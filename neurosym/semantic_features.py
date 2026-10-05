@@ -1,5 +1,6 @@
 """Model-facing semantic inputs, training-only vectorization, and actual support masks."""
 from collections import Counter, defaultdict
+from collections.abc import Mapping
 from copy import deepcopy
 from pathlib import Path
 
@@ -12,6 +13,54 @@ from .semantics import read_jsonl, verify_build
 from .temporal import causal_bin_features, fir_design
 
 
+def _immutable_change(*args, **kwargs):
+    raise TypeError("Public candidate descriptors are immutable.")
+
+
+class FrozenDict(dict):
+    __setitem__ = __delitem__ = clear = pop = popitem = setdefault = update = __ior__ = _immutable_change
+
+    def __deepcopy__(self, memo):
+        return self
+
+
+class FrozenList(list):
+    __setitem__ = __delitem__ = append = clear = extend = insert = pop = remove = reverse = sort = __iadd__ = __imul__ = _immutable_change
+
+    def __deepcopy__(self, memo):
+        return self
+
+
+def freeze_descriptor(value):
+    if isinstance(value, dict):
+        return FrozenDict({k: freeze_descriptor(v) for k, v in value.items()})
+    if isinstance(value, list):
+        return FrozenList(freeze_descriptor(v) for v in value)
+    return value
+
+
+class CandidateSets(Mapping):
+    """Share immutable descriptor storage; materialize only a requested ordered set."""
+    def __init__(self, record):
+        self.pooled = record.get("format_version") == 2
+        self.sets = record["sets"] if self.pooled else record
+        self.descriptors = {k: freeze_descriptor(v) for k, v in record["descriptors"].items()} if self.pooled else {}
+        self._resolved = {}
+
+    def __getitem__(self, key):
+        if not self.pooled:
+            return self.sets[key]
+        if key not in self._resolved:
+            self._resolved[key] = FrozenList(self.descriptors[d] for d in self.sets[key])
+        return self._resolved[key]
+
+    def __iter__(self):
+        return iter(self.sets)
+
+    def __len__(self):
+        return len(self.sets)
+
+
 class SemanticDataset:
     def __init__(self, build: Path, *, verify=True):
         self.build = Path(build)
@@ -21,12 +70,12 @@ class SemanticDataset:
         self.build_hash = object_hash(self.identity)
         self.splits = read_json(self.build / "splits.json")
         self.definitions = read_json(self.build / "feature_catalog.json")
-        self.candidate_sets = read_json(self.build / "candidate_sets.json")
+        self.candidate_sets = CandidateSets(read_json(self.build / "candidate_sets.json"))
         self.story_ids = [s["story_id"] for s in self.identity["coverage"]]
         self._cache = {}
 
     def records(self, story_id, kind):
-        if story_id not in self.story_ids or kind not in {"sources", "features", "queries", "answers", "oracle", "occurrences", "review", "history"}:
+        if story_id not in self.story_ids or kind not in {"sources", "features", "queries", "answers", "oracle", "occurrences", "review", "history", "expressions"}:
             raise ValueError("Unknown semantic story or artifact kind.")
         key = story_id, kind
         if key not in self._cache:
@@ -56,7 +105,7 @@ class SemanticDataset:
             answer = answers[query["id"]]
             if not answer["scoring_eligible"] or (families is not None and query["family"] not in families):
                 continue
-            if reviewed_only and answer["annotation_review_status"] not in {"reviewed", "adjudicated", "human_reviewed"}:
+            if reviewed_only and answer["annotation_review_status"] not in {"reviewed", "adjudicated", "human_reviewed", "accepted_reviewed"}:
                 continue
             selected.append((query, answer))
         counts = defaultdict(Counter)
@@ -73,6 +122,14 @@ class SemanticDataset:
         sources = {s["id"]: s for s in self.records(story_id, "sources")}
         if source_id not in sources:
             raise ValueError("The requested annotation endpoint is not compiled.")
+        if self.identity.get("semantic_interface") == "reviewed-scoped-expressions-v1":
+            from .reviewed_graph import ReviewedHistory
+            history = ReviewedHistory(read_json(self.build / "stories" / story_id / "constraints.json"))
+            for delta in self.records(story_id, "history"):
+                history.append({**delta, "unit_id": delta["source_id"]}, delta["aliases"])
+                if delta["source_id"] == source_id:
+                    return history.state()
+            raise ValueError("Missing reviewed history endpoint.")
         history = GraphHistory()
         for delta in self.records(story_id, "history"):
             source = sources[delta["source_id"]]
@@ -174,8 +231,11 @@ class SemanticVectorizer:
         sources = dataset.records(story_id, "sources")
         timing = read_json(dataset.build / "stories" / story_id / "timing.json")
         full, counts = causal_bin_features(values, [s["raw_feature_bin"] for s in sources], timing["raw_response_rows"], reduction="sum")
+        known = np.asarray(timing["known_raw_rows"], dtype=bool)
+        for group in self.identity["groups"]:
+            known &= np.asarray(timing.get("group_known_raw_rows", {}).get(group, timing["known_raw_rows"]), dtype=bool)
         design, valid = fir_design(full, timing["response_raw_indices"],
-                                  timing["fir_delays_trs"] if delays is None else delays, timing["known_raw_rows"])
+                                  timing["fir_delays_trs"] if delays is None else delays, known)
         return design, valid, {**coverage, "observed_unit_counts": counts.tolist()}
 
     def save(self, path):

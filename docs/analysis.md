@@ -13,21 +13,13 @@ have run on released textual feature arrays and real compiled queries. Those
 arrays verify algorithms; they are never represented as fMRI or contemporary
 model states. **No scientific brain/model fit has run locally.**
 
-The annotation thread now targets `data/annotations/deniz-luna-v5`, with compiled
-destination `data/processed/semantics-v5`. That compiled destination is not yet
-present. Verification explicitly used the older immutable build
-`e949717fc2192e123f0ea36198f6d1520c0cc319bab7490521c3cc0ff8704e78`.
-It is partial and contains legacy and ground-and-bind protocols. Its numerical
-verification is not acceptance of its annotations for the paper, and cannot
-authorize packaging a different, unverified v5 build.
-
-The annotation update adds literal argument targets, nested context profiles,
-context-qualified relations/identity questions and prefix-preserving identity
-updates. The existing readouts consume these updated public query descriptors.
-GB/GBR and PB/PBR encoding groups separate general role binding from
-predicate-specific binding. `artifacts/joint-decoder-verification.json` records
-the subsequent query-interface checks on archived annotations and released text
-features; full scientific verification must use the completed v5 snapshot.
+The accepted annotation input is independent-review build
+`5cd83e0779bb5440da47`, pinned by its full hash in `configs/semantics.json`.
+Review is closed. The complete downstream contract, scope interpretations,
+uncertainty handling and current query definitions are described in
+[reviewed_downstream.md](reviewed_downstream.md). Compiled output is
+`data/processed/semantics-reviewed`. Earlier legacy verification receipts do not
+authorize this build; packaging requires receipts for the current build and code.
 
 Full responses and modern hidden states remain on the cluster. The 18 complete
 local response files needed for all brain fits are absent. Previous cluster
@@ -147,10 +139,12 @@ Unknown tokens stay unknown. No pretrained semantic model is hidden in the reado
 The structured model transforms observations locally, then produces unary site
 support by concept-conditioned dot products. Low-rank left/right factors produce
 typed ordered-pair support. Role binding combines anchor/filler support with that
-relation; composition propagates support through typed steps. Binding verification
-learns an answer head over joint role and polarity evidence. Unmentioned edges
-are not labelled false. Positive-only concept diagnostics are executable but
-excluded from scored training by the compiler's eligibility policy.
+relation; composition propagates support through typed steps. Reviewed binding
+queries compare ordered role assignments. Concept queries identify recorded
+content at an anchor. Local polarity and full scope are separate recovery tasks.
+Unmentioned edges are not labelled false, and concept identification is not a
+claim of actual-world existence. The older binary verification head remains only
+for explicitly selected legacy builds.
 
 There is no direct query-only output branch in the structured model, although
 learned parameters and context can still supply priors. Baselines and disruptions
@@ -181,8 +175,8 @@ retraining under disrupted pairing are distinct controls.
 `--composition-keys` takes a JSON list of selected configuration hashes. Whole
 training stories containing those configurations are purged; incomplete stories
 cannot certify absence. Constituents must remain observed. Tests select role,
-binding, status and polarity queries on the exact heldout event, not every query
-in its story. Insufficient support stops the requested run. Polarity contrasts
+binding, scope, polarity and composition queries on the exact heldout event,
+not every query in its story. Insufficient support stops the requested run. Polarity contrasts
 remain polarity evidence, not proof of role-swap discrimination.
 
 ## Geometry and inference
@@ -204,10 +198,12 @@ letter counts, word-length variability, prefix position and elapsed time. These
 controls use only prefix-available information. Raw and residualized views have
 different identities; residualization does not remove every lexical confound.
 
-Grounding profiles support concept, predicate, role and discourse labels. Native,
-latent and encoding-implied views also support configurations, reference and
-state updates. Missing grounding signatures and zero norms are explicit exclusions,
-not zero distances. Site coordinate metadata accompanies grounding matrices.
+Grounding profiles support unary concept/predicate/literal/scope and ordered-pair
+role, discourse, reference, identity and attachment labels. Native, latent and
+encoding-implied views also support whole configurations. Missing signatures and
+zero norms are explicit exclusions, not zero distances. Scope can be pooled with
+saved provenance or matched explicitly with `--scope-mode scoped`. Site coordinate
+metadata accompanies grounding matrices.
 
 Distances are computed within one fitted coordinate system. Across human/model
 views compare common-item RDMs, never raw latent coordinates. Label permutation
@@ -227,16 +223,15 @@ result-level inference has run yet.
 
 `artifacts/analysis-verification.json` records the real inputs, code hashes and
 checks: local projection/serialization, ridge primal/dual equivalence, exact
-tuning-MSE algebra, timing masks, eight operators across four readouts with finite
+tuning-MSE algebra, timing masks, reviewed tasks across four readouts with finite
 gradients, answer-input rejection, prediction/trace serialization, real-feature
 RDM identity, and all nine spatial contracts. This does not establish annotation
 accuracy, convergence, heldout brain performance or map reliability.
 
-The preflight currently stops final execution at the missing v5 build and absent
-full local observations. Annotation can continue without changes to its runner,
-prompts, configuration or records.
+The preflight reports absent full local observations. Accepted annotation review
+is closed; its runner, prompts, configuration and original records remain intact.
 
-After the annotation thread reports completion, in local Windows CMD:
+To compile, verify and package the accepted review, in local Windows CMD:
 
 ```cmd
 cd /d C:\Users\pigby\neurosymbolic_coognitive_linguistics

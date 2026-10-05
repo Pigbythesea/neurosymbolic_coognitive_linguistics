@@ -116,6 +116,9 @@ These are review requests, not automatic semantic corrections. Full review recor
 def compile_semantics(root, config_path):
     root = Path(root).resolve()
     config = read_json(config_path)
+    if config.get("format_version") == 2:
+        from .reviewed_compile import compile_reviewed
+        return compile_reviewed(root, config_path)
     policy = {"format_version": 1, "feature_reduction": "sum", "normalization": "preserve_annotation_labels_and_senses",
               "availability": "annotation_unit_endpoint", "query_label_policy": "annotation_supported_answers_no_closed_world_negatives"}
     if any(config.get(key) != value for key, value in policy.items()):

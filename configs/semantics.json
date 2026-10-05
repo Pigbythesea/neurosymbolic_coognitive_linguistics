@@ -1,14 +1,14 @@
 {
-  "format_version": 1,
+  "format_version": 2,
   "corpus": "data/processed/corpus",
-  "annotations": "data/annotations/deniz-luna-v5",
-  "annotation_pass": "primary",
+  "reviewed_export": "data/annotations/deniz-independent-review-v1/exports/5cd83e0779bb5440da47",
+  "reviewed_build_hash": "5cd83e0779bb5440da4761cbaf26dd9791966212bbc2bc787c1efd8669524751",
   "alignment": "data/processed/alignment",
-  "output": "data/processed/semantics-v5",
+  "output": "data/processed/semantics-reviewed",
   "candidate_seed": 1729,
   "feature_reduction": "sum",
-  "normalization": "preserve_annotation_labels_and_senses",
+  "normalization": "accepted_typed_aliases_preserve_raw_records",
   "availability": "annotation_unit_endpoint",
   "query_label_policy": "annotation_supported_answers_no_closed_world_negatives",
-  "notes": "Deterministic, read-only consumption of saved annotations. No LLM calls. Incomplete coverage and semantic review are reported separately from compilation success."
+  "notes": "Accepted review is closed. Deterministic scoped compilation with all raw records and targeted uncertainties retained. No LLM calls or world-truth projection."
 }

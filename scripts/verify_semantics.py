@@ -25,6 +25,14 @@ def require(condition, message):
 
 
 def verify(build):
+    if read_json(Path(build) / "identity.json").get("semantic_interface") == "reviewed-scoped-expressions-v1":
+        from verify_reviewed_semantics import verify as verify_reviewed
+        report = verify_reviewed(build)
+        destination = ROOT / "artifacts/reviewed-semantics-verification.json"
+        save_json(destination, report)
+        print(report)
+        print("VERIFICATION REPORT:", destination)
+        return
     dataset = SemanticDataset(build)
     config = dataset.identity["config"]
     corpus = ROOT / config["corpus"]

@@ -72,10 +72,11 @@ def main():
             run.add_argument("--composition-keys", type=Path, help="JSON list of preselected exact configuration hashes; whole training stories are purged")
         if command == "geometry":
             run.add_argument("--view", choices=["native", "grounding", "latent", "encoding-implied"], required=True)
-            run.add_argument("--kind", choices=["concept", "predicate", "role", "configuration", "discourse", "reference", "state_update", "literal", "identity"], required=True)
+            run.add_argument("--kind", choices=["concept", "predicate", "role", "configuration", "discourse", "reference", "state_update", "literal", "identity", "scope", "qualification"], required=True)
             run.add_argument("--from-run", type=Path)
             run.add_argument("--component", help="Encoding feature-group contribution, otherwise total predicted response")
             run.add_argument("--min-stories", type=int, default=1, help="Per-fold test sets contain one story; cross-context reliability is reported unavailable there")
+            run.add_argument("--scope-mode", choices=["pooled", "scoped"], default="pooled", help="Pool with saved scope provenance, or require identical symbolic scope per semantic item")
             run.add_argument("--residualize-presentation", action="store_true", help="Native geometry: training-fitted presentation-feature residuals, saved separately from raw native geometry")
     args = parser.parse_args()
     if args.command == "preflight":

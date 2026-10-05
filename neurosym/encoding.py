@@ -91,7 +91,7 @@ class EncodingFeatures:
         timing = read_json(data.semantics.build / "stories" / story / "timing.json")
         rows, delays = timing["response_raw_indices"], timing["fir_delays_trs"]
         # The common mask remains identical across semantic/model ablations.
-        known = np.asarray(timing["known_raw_rows"], dtype=bool)
+        known = np.asarray(timing.get("comparison_known_raw_rows", timing["known_raw_rows"]), dtype=bool)
         valid = np.ones(len(rows), dtype=bool)
         for delay in delays:
             indices = np.asarray(rows) - delay

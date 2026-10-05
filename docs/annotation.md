@@ -1,5 +1,15 @@
 # Joint source-anchored annotation
 
+**Historical runner documentation.** On 2026-10-04 the researcher discarded CLI
+annotation in favor of direct semantic authoring. The active production attempt
+and its inspection commands are documented in [direct_annotation.md](direct_annotation.md).
+The commands below describe the archived runner, not the active attempt.
+
+The current reviewed interpretation is selected by
+`data/annotations/deniz-independent-review-v1/latest.json`. See the
+[independent scientific review handoff](independent_review_handoff.md) for the
+recommended immutable input, semantic interface, coverage and human-review packet.
+
 Current protocol: `joint-source-v5`. Output: `data/annotations/deniz-luna-v5`.
 Graph schema version 2 retains literals, nested contexts and later identity links.
 Earlier runs remain archived. V4 repaired graphs never enter v5 history.

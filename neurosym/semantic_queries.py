@@ -35,6 +35,9 @@ def matching_contexts(ids, selectors, history):
 
 def validate_ast(ast):
     op = ast.get("op")
+    if op == "reviewed_choice":
+        from .reviewed_queries import validate_reviewed_ast
+        return validate_reviewed_ast(ast)
     fields = {"concept": {"op", "concept"}, "role": {"op", "event", "role"},
               "reference": {"op", "mention"}, "status": {"op", "event"},
               "polarity": {"op", "event"}, "relation": {"op", "source", "target", "contexts"},

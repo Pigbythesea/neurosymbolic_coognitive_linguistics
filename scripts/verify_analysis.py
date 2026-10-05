@@ -24,7 +24,7 @@ from neurosym.analysis_runs import decoder_metrics, write_report
 from neurosym.decoders import SemanticDecoder, acceptable_loss, detached_trace, query_vocabulary
 from neurosym.decoder_fit import evaluate, mismatch_map, write_trace
 from neurosym.encoding import EncodingFeatures, GroupRidge
-from neurosym.geometry import cosine_rdm, rdm_comparison
+from neurosym.geometry import cosine_rdm, rdm_comparison, trace_signature
 from neurosym.io import object_hash
 from neurosym.io import read_json
 
@@ -73,6 +73,10 @@ def verify(build):
     examples, sources, selected = [], {}, {}
     expected_ops = {"concept", "role", "reference", "status", "polarity", "relation", "binding", "compose"}
     compilation = read_json(data.semantics.build / "report.json")
+    reviewed = data.semantics.identity.get("semantic_interface") == "reviewed-scoped-expressions-v1"
+    if reviewed:
+        from neurosym.reviewed_queries import TASKS
+        expected_ops = TASKS - {"compose"} | {"compose/argument_event", "compose/scope_parent", "compose/event_relation"}
     if compilation.get("queries", {}).get("identity_update", {}).get("annotation_supported", 0):
         expected_ops.add("identity")
     for story in data.semantics.splits["development"]:
@@ -87,13 +91,18 @@ def verify(build):
             example = {"query_id": query["id"], "source_id": source["id"], "inputs": data.semantics.decoder_inputs(query),
                        "acceptable_indices": answer["acceptable_indices"], "story_id": story,
                        "family": query["family"], "weight": 1.0, "annotation_review_status": answer["annotation_review_status"]}
-            selected.setdefault(example["inputs"]["ast"]["op"], example)
+            ast_query = example["inputs"]["ast"]
+            operator_key = ast_query.get("task", ast_query["op"])
+            if reviewed and operator_key == "compose":
+                operator_key += "/" + ast_query["steps"][0]["op"]
+            selected.setdefault(operator_key, example)
         if expected_ops <= set(selected):
             break
     if not expected_ops <= set(selected):
         raise ValueError("Real compiled query coverage is insufficient for operator verification: " + str(expected_ops - set(selected)))
     vocabulary = query_vocabulary(list(selected.values()))
     coverage = {}
+    grounding_checks = {}
     numerical_windows = {}
     cached_features = {"story_01": transformed}
     for family in ("prior", "linear", "mlp", "structured"):
@@ -117,6 +126,20 @@ def verify(build):
                     raise AssertionError("Structured execution omitted its spatial grounding trace.")
                 if op != "concept" and not trace["relations"]:
                     raise AssertionError("Relational query omitted ordered-pair support.")
+                if reviewed and example["inputs"]["ast"]["task"] in {"concept", "role", "reference", "scope", "polarity", "qualifier", "property"}:
+                    query_ast = example["inputs"]["ast"]
+                    primitives = {object_hash(p["description"]): p["scores"] for p in trace["primitive"]}
+                    left = primitives[object_hash(query_ast["anchor"])]
+                    rel = next(r for r in trace["relations"] if r["operation"] == query_ast["operation"])
+                    pair = rel["left_factor"] @ rel["right_factor"].T / rel["scale"]
+                    pair = pair.masked_fill(~(model.site_mask[:, None] & model.site_mask[None]), -1e4)
+                    direct = []
+                    for candidate in example["inputs"]["candidates"]:
+                        right = primitives[object_hash(candidate)]
+                        la, ra = left.softmax(0), right.softmax(0)
+                        direct.append(la @ pair @ ra + .5 * (la @ left + ra @ right))
+                    if not torch.allclose(logits, torch.stack(direct), atol=1e-5, rtol=1e-5):
+                        raise AssertionError("Vectorized grounding changed the real candidate-choice scores")
             coverage[family + "/" + op] = {"query_id": example["query_id"], "candidate_count": len(logits), "finite_gradient": True}
         with tempfile.TemporaryDirectory(dir=ROOT / "artifacts") as temporary:
             with h5py.File(Path(temporary) / "traces.h5", "w") as file:
@@ -125,12 +148,35 @@ def verify(build):
                     raise AssertionError("Real query evaluation/repetition aggregation changed the query inventory.")
                 if family == "structured" and any("site_mask" not in group["0"] for group in file.values()):
                     raise AssertionError("Serialized spatial trace lost its observed-site mask.")
+                if family == "structured" and reviewed:
+                    kinds = {"role": "role", "reference": "reference", "relation": "discourse", "identity": "identity",
+                             "qualifier": "qualification", "property": "state_update"}
+                    for task, kind in kinds.items():
+                        example = selected[task]
+                        records = [r for r in data.semantics.records(example["story_id"], "occurrences")
+                                   if r["kind"] == kind and r["source_id"] == example["source_id"]]
+                        signatures = [trace_signature(file[example["query_id"]]["0"], r, "grounding") for r in records]
+                        signatures = [s for s in signatures if s is not None]
+                        if not signatures or any(len(s) != int(projector.site_mask.sum()) ** 2 or not np.isfinite(s).all() for s in signatures):
+                            raise AssertionError("Real ordered grounding profile did not survive serialization: " + task)
+                        grounding_checks[task] = len(signatures)
         try:
             model.answer(None, {**next(iter(selected.values()))["inputs"], "answer": "forbidden"})
         except ValueError:
             pass
         else:
             raise AssertionError("Decoder accepted a private answer input.")
+    if reviewed:
+        candidates = next(iter(selected.values()))["inputs"]["candidates"]
+        before = object_hash(candidates)
+        try:
+            candidates[0].clear()
+        except TypeError:
+            pass
+        else:
+            raise AssertionError("Shared public candidate storage was mutable")
+        if object_hash(candidates) != before:
+            raise AssertionError("Candidate descriptor changed during execution")
     factory = EncodingFeatures(data, ["story_01"], ["presentation", "C"])
     design, mask = factory.story("story_01")
     if len(mask) != data.reader.contract["subjects"]["subject01"]["story_01"]["timepoints"] - 20 or not mask.any():
@@ -155,6 +201,7 @@ def verify(build):
             "verified_code_sha256": {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in verified_files},
             "annotation_protocols": sorted({s["annotation_protocol"] for s in sources.values()}),
             "partial_annotations": data.partial, "real_query_execution": coverage,
+            "real_grounding_pair_profiles": grounding_checks,
             "group_ridge_max_primal_dual_error": float(np.max(np.abs(first - second))),
             "mse_sufficient_statistic_error": float(abs(exact - moments)), "spatial": spatial,
             "encoding_valid_rows_story01": int(mask.sum()),

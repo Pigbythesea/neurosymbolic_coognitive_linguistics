@@ -6,6 +6,15 @@
 
 Read this file before proposing a new scope, interpreting the older proposals, or splitting implementation among agents. It preserves the conceptual discussion, the researcher's corrections to earlier advice, and the resulting direction. Most of this document concerns decisions made before implementation. Section 13 separately records operational decisions that followed, so they are not mistaken for original scientific commitments.
 
+**Accepted-review integration, 2026-10-05:** The researcher closed annotation
+review and authorized downstream implementation against immutable build
+`5cd83e0779bb5440da47`. This supersedes earlier instructions to wait for annotation
+or human adjudication before integration. Preserve the accepted archive and its
+uncertainties; acceptance does not constitute an independent accuracy estimate.
+The active downstream contract is [reviewed_downstream.md](reviewed_downstream.md).
+Cluster verification is paused; local compilation and real-corpus verification
+precede researcher-operated cluster execution. The full scientific scope remains.
+
 ## 1. Source authority and how to use this record
 
 The researcher originally supplied two proposals and a longer discussion that generated the plan:
@@ -331,8 +340,10 @@ These decisions followed the conceptual discussion. They are included to prevent
 | Build and run only on allocated compute nodes. | Environments, model caches, dependency installation, downloads, and compute jobs belong under the project workspace. Nothing should be built on the login node or in home storage. Lightweight login-node inspection/submission is distinct. |
 | Hand long runs and inaccessible sites to the researcher. | Provide exact steps or copy-pastable commands, then wait for the actual required outputs. Do not spend the session polling long jobs or fabricate replacements. |
 | Use CMD for Windows instructions. | Absolutely no PowerShell in user-run copy-pastable commands. Commands for the existing Linux SSH session must be clearly identified as remote shell commands. |
-| Use Codex CLI annotation with the existing ChatGPT login. | Prefer the available usage allowance over separate API spending. Do not silently switch billing or credentials. |
-| Prefer fast, low-cost annotation without high reasoning. | The recorded configuration uses Luna with reasoning `none`; a single primary pass is the default, with an optional explicitly requested blind pass. This supersedes the earlier High/two-full-pass default. |
+| Use direct instruction and authoring for production annotation. | The researcher discarded the ineffective CLI pipeline and explicitly superseded its Luna/none preferences. The earlier CLI attempt remains development evidence. See [the production annotation record](direct_annotation.md). |
+| Use progressive isolated story contexts. | The researcher explicitly authorized isolated annotation agents. Actual incremental authoring receives one unit at a time without later passages or completed target-story graphs. Save evidence and available model/settings provenance; do not infer unavailable settings from historical configuration. |
+| Keep this annotation task separate from downstream analysis changes. | The researcher will address downstream compatibility in a separate thread. This task produces annotations and shared deterministic, lossless annotation exports, without fitting features or changing encoding, decoding or geometry modules. |
+| Use the versioned independent review for the current annotation input. | Resolve `data/annotations/deniz-independent-review-v1/latest.json`, then pin its immutable `recommended_input` and build hash. The [scientific review handoff](independent_review_handoff.md) defines surgical corrections, preserved alternatives, compiler semantics and pending human adjudication. Original direct-authoring exports remain intact. |
 
 The cluster project workspace established in this thread is `/weka/projects/tshu2/zzhan330/neurosymbolic_coognitive_linguistics`; the login is `zzhan330@login.arch.jhu.edu`. This records the agreed destination, not permission for an agent to operate it independently.
 
@@ -371,7 +382,7 @@ Routine engineering choices can be made within the authorized scope. A change th
 | Ground truth | Use observed fMRI and semantic answer targets; anatomical groundings lack direct labels. | Calling the entire task ground-truth-free or assuming nothing is trained. |
 | Frozen versus trained | Freeze representation models; train the necessary mappings/readouts separately. | Fine-tuning all models or treating trained probes as incompatible with frozen evaluation. |
 | Graph labels | Evidence-linked, time-aware semantics with uncertainty and human review. | Equating parser validity or same-model agreement with semantic truth. |
-| Annotator | Closed models and authenticated Codex usage are acceptable; prefer economical settings. | Mandatory older open-weight annotators or high reasoning. |
+| Annotator | Direct instruction and progressive authoring are the primary production attempt; preserve available provenance. | Mandatory older open-weight annotators, the discarded CLI runner, and earlier Luna/none preferences. |
 | Model panel | Contemporary models selected for useful comparisons, with justified legacy baselines only. | Permanently retaining the old fixed roster because earlier papers used it. |
 | Datasets | Verified core reading data plus scientifically motivated complements. | Downloading every listed resource or counting unrelated text as neural evidence. |
 | Geometry | Preserve concept comparisons and distinguish measured, grounded, latent, and predicted signatures. | Treating every embedding or map as the same biological object. |

@@ -1,0 +1,367 @@
+{
+  "protocol": "explicit-semantic-scope-cases-v1",
+  "status": "reviewed compiler interpretations; human adjudication pending",
+  "operator_language": {
+    "atom": "Predicate and ordered arguments only; no automatic local polarity, context or qualifiers. Other tense/mode/support metadata is retained on the referenced record.",
+    "qualified_atom": "Predicate, arguments and nonconsumed qualifiers; omit the context operator being defined, preventing recursion.",
+    "not": "Logical negation of body, exactly once.",
+    "possible": "Possibility of body, not assertion of its occurrence.",
+    "and": "Conjunction of items in the same designated scenario.",
+    "or_open": "Nonexhaustive disjunction restricted to the named domain; listed members are examples, not an exhaustive closed world.",
+    "exists_local": "Existential binding local to the branch, no actual entity existence projected.",
+    "degree": "Degree-restricted body using original qualifier value; numeric threshold remains unknown."
+  },
+  "application": "These explicit cases take precedence over blindly multiplying polarity, modality and context labels. Apply at unit availability, preserve raw fields and source IDs. Unlisted values remain typed symbolic records; unsupported flattening must fail closed.",
+  "cases": [
+    {
+      "case_id": "joint_condition_universal_solution",
+      "unit_id": "story_09_u0057",
+      "affected_ids": ["story_09:u0057_rel0", "story_09:u0057_rel1", "story_09:u0057_have", "story_09:u0057_think", "story_09:u0057_look", "story_09:u0057_condition", "story_09:u0057_qua2"],
+      "evidence_refs": ["story_09:u0057_rel0", "story_09:u0057_rel1", "story_09:u0057_qua2"],
+      "kind": "compound_condition",
+      "target": "story_09:u0057_condition",
+      "antecedent_combination": "and",
+      "antecedents": ["story_09:u0057_have", "story_09:u0057_think"],
+      "consequent": "story_09:u0057_look",
+      "joint_relation_records": ["story_09:u0057_rel0", "story_09:u0057_rel1"],
+      "interpretation": "Having the candidate solution together with believing it is right for everyone supplies the joint antecedent of the generic conditional. Do not treat the two edges as two independently sufficient conditions. Preserve the positive looking tendency qualified by cannot-help-but; the idiom does not deny looking."
+    },
+    {
+      "case_id": "conjoined_possible_world_goals",
+      "unit_id": "story_09_u0084",
+      "affected_ids": ["story_09:u0084_pro0", "story_09:u0084_win", "story_09:u0084_get", "story_09:u0084_belief"],
+      "evidence_refs": ["story_09:u0084_pro0"],
+      "kind": "structured_value_interpretation",
+      "target": "story_09:u0084_pro0",
+      "coordination": "and",
+      "members": ["story_09:u0084_win", "story_09:u0084_get"],
+      "interpretation": "The explicit surface_coordination value and determines coordination. The alternatives_or_combination container name does not authorize exclusive disjunction. Keep each member's modal qualification and the shared belief context; neither occurrence is asserted actual."
+    },
+    {
+      "case_id": "felt_possible_negative_ability",
+      "unit_id": "story_09_u0086",
+      "affected_ids": ["story_09:u0086_felt", "story_09:u0086_possible", "story_09:u0086_capability_content", "story_09:u0086_feel", "story_09:u0086_able", "story_09:u0086_trust"],
+      "evidence_refs": ["story_09:u0086_feel", "story_09:u0086_able"],
+      "kind": "context_attribution_semantics",
+      "target": "story_09:u0086_capability_content",
+      "operator": "content_of_negative_ability",
+      "attribution": "story_09:u0086_able",
+      "projection": "none_to_actual_occurrence",
+      "interpretation": "The broad possible kind marks the content argument of the negative ability event, not an additional positive possibility of trust. The outer structure is felt(possible(negative future ability to trust oneself)), preserving temporal qualification. Do not derive either actual inability or a separately asserted possibility of trusting."
+    },
+    {
+      "case_id": "continued_ad_report_27",
+      "unit_id": "story_07_u0027",
+      "affected_ids": ["story_07:u0027_report", "story_07:u0026_report"],
+      "evidence_refs": ["story_07:u0027_report"],
+      "kind": "context_continuation",
+      "target": "story_07:u0027_report",
+      "same_operator_as": "story_07:u0026_report",
+      "interpretation": "Continues the advertisement's reported earning claim. The following possibility is a real additional modal operator, but this child report segment adds no second reporting act."
+    },
+    {
+      "case_id": "continued_steve_warning_48",
+      "unit_id": "story_07_u0048",
+      "affected_ids": ["story_07:u0048_report", "story_07:u0047_report", "story_07:u0048_nested_report", "story_07:u0048_say"],
+      "evidence_refs": ["story_07:u0048_report", "story_07:u0048_nested_report"],
+      "kind": "context_continuation",
+      "target": "story_07:u0048_report",
+      "same_operator_as": "story_07:u0047_report",
+      "preserve_distinct_operator": "story_07:u0048_nested_report",
+      "interpretation": "Steve's outer quotation continues his earlier warning. The hypothetical customer's attributed speech inside the question/scenario is a distinct nested report and must remain."
+    },
+    {
+      "case_id": "continued_steve_warning_50",
+      "unit_id": "story_07_u0050",
+      "affected_ids": ["story_07:u0050_report", "story_07:u0048_report", "story_07:u0050_nested_report", "story_07:u0050_reply"],
+      "evidence_refs": ["story_07:u0050_report", "story_07:u0050_nested_report"],
+      "kind": "context_continuation",
+      "target": "story_07:u0050_report",
+      "same_operator_as": "story_07:u0048_report",
+      "preserve_distinct_operator": "story_07:u0050_nested_report",
+      "interpretation": "The outer warning continues. The imagined narrator reply under Steve's described obligation is genuinely embedded speech, not another actual utterance by the narrator."
+    },
+    {
+      "case_id": "possibly_abandoned_grab_frame",
+      "unit_id": "story_07_u0076",
+      "affected_ids": ["story_07:u0076_grab", "story_07:u0076_unc1"],
+      "evidence_refs": ["story_07:u0076_unc1"],
+      "kind": "assertion_eligibility",
+      "target": "story_07:u0076_grab",
+      "status": "unresolved_commitment",
+      "alternatives": ["partial action report with unknown patient", "abandoned predicate start"],
+      "interpretation": "Retain the positive partial frame and its source span, but do not emit an unqualified completed grab event or invent a patient. The unresolved abandonment note limits factual commitment; it does not assert that no grab occurred."
+    },
+    {
+      "case_id": "no_way_scope",
+      "unit_id": "story_03_u0050",
+      "affected_ids": [
+        "story_03:u0050_failure",
+        "story_03:u0050_qua0"
+      ],
+      "evidence_refs": [
+        "story_03:u0050_failure"
+      ],
+      "kind": "local_formula",
+      "target": "story_03:u0050_failure",
+      "formula": {
+        "op": "not",
+        "body": {
+          "op": "possible",
+          "body": {
+            "op": "atom",
+            "id": "story_03:u0050_failure"
+          }
+        }
+      },
+      "consume_fields": [
+        {
+          "id": "story_03:u0050_failure",
+          "field": "polarity"
+        },
+        {
+          "id": "story_03:u0050_qua0",
+          "field": "value"
+        }
+      ],
+      "interpretation": "No possibility of positive excellence. The negative event and impossible qualifier redundantly express one modal denial; never impossible(NOT excel). Keep argument activity, tense, support and source.",
+      "human_status": "interface ambiguity resolved by explicit interpretation; still sampled for human adjudication"
+    },
+    {
+      "case_id": "without_inside_impossibility",
+      "unit_id": "story_06_u0037",
+      "affected_ids": [
+        "story_06:u0037_impossible",
+        "story_06:u0037_grow",
+        "story_06:u0037_no_knowledge",
+        "story_06:u0037_impossible_scenario",
+        "story_06:u0037_qua1"
+      ],
+      "evidence_refs": [
+        "story_06:u0037_impossible",
+        "story_06:u0037_qua1"
+      ],
+      "kind": "local_formula",
+      "target": "story_06:u0037_impossible",
+      "formula": {
+        "op": "not",
+        "body": {
+          "op": "possible",
+          "body": {
+            "op": "and",
+            "items": [
+              {
+                "op": "atom",
+                "id": "story_06:u0037_grow"
+              },
+              {
+                "op": "not",
+                "body": {
+                  "op": "atom",
+                  "id": "story_06:u0037_no_knowledge"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "consume_fields": [
+        {
+          "id": "story_06:u0037_impossible",
+          "field": "polarity"
+        },
+        {
+          "id": "story_06:u0037_no_knowledge",
+          "field": "polarity"
+        },
+        {
+          "id": "story_06:u0037_impossible_scenario",
+          "field": "kind"
+        },
+        {
+          "id": "story_06:u0037_qua1",
+          "field": "value"
+        }
+      ],
+      "interpretation": "The qualified growing-up scenario includes absence of knowledge. The scenario context and root modal predicate encode the same negated possibility. 'Without' does not negate the already negative knowledge proposition again. No atom in this formula is independently asserted actual."
+    },
+    {
+      "case_id": "degree_limited_negation",
+      "unit_id": "story_04_u0063",
+      "affected_ids": [
+        "story_04:u0063_matter",
+        "story_04:u0063_qua1",
+        "story_04:u0063_rel1"
+      ],
+      "evidence_refs": [
+        "story_04:u0063_matter",
+        "story_04:u0063_qua1"
+      ],
+      "kind": "local_formula",
+      "target": "story_04:u0063_matter",
+      "formula": {
+        "op": "not",
+        "body": {
+          "op": "degree",
+          "qualifier_id": "story_04:u0063_qua1",
+          "body": {
+            "op": "atom",
+            "id": "story_04:u0063_matter"
+          }
+        }
+      },
+      "consume_fields": [
+        {
+          "id": "story_04:u0063_matter",
+          "field": "polarity"
+        },
+        {
+          "id": "story_04:u0063_qua1",
+          "field": "value"
+        }
+      ],
+      "interpretation": "Strategies enable not substantially mattering, not the positive predicate. 'Really' supplies an unspecified degree threshold; do not claim zero relevance."
+    },
+    {
+      "case_id": "continued_mother_report_50",
+      "unit_id": "story_04_u0050",
+      "affected_ids": [
+        "story_04:u0050_continued_report",
+        "story_04:u0049_explanation"
+      ],
+      "evidence_refs": [
+        "story_04:u0050_continued_report"
+      ],
+      "kind": "context_continuation",
+      "target": "story_04:u0050_continued_report",
+      "same_operator_as": "story_04:u0049_explanation",
+      "interpretation": "This child context continues the same maternal explanation. In semantic operator evaluation traverse to the earlier context without adding another saying. Retain both raw context nodes and their parent edge."
+    },
+    {
+      "case_id": "continued_mother_report_51",
+      "unit_id": "story_04_u0051",
+      "affected_ids": [
+        "story_04:u0051_report",
+        "story_04:u0049_explanation"
+      ],
+      "evidence_refs": [
+        "story_04:u0051_report"
+      ],
+      "kind": "context_continuation",
+      "target": "story_04:u0051_report",
+      "same_operator_as": "story_04:u0049_explanation",
+      "interpretation": "Continues the maternal explanation; embedded others' belief is a further operator, but continuation itself is not mother-says-mother-says."
+    },
+    {
+      "case_id": "possibility_redundancy",
+      "unit_id": "story_06_u0049",
+      "affected_ids": [
+        "story_06:u0049_possibility",
+        "story_06:u0049_qua0",
+        "story_06:u0049_be_joke"
+      ],
+      "evidence_refs": [
+        "story_06:u0049_qua0"
+      ],
+      "kind": "operator_equivalence",
+      "operator": "possible",
+      "representations": [
+        "story_06:u0049_possibility",
+        "story_06:u0049_qua0"
+      ],
+      "target": "story_06:u0049_be_joke",
+      "interpretation": "Question(possible(be_joke)); matching qualifier and context instantiate one possibility, not nested possible(possible)."
+    },
+    {
+      "case_id": "later_type_clarification",
+      "unit_id": "story_06_u0044",
+      "affected_ids": [
+        "story_06:u0044_qua0",
+        "story_06:u0043_qua0"
+      ],
+      "evidence_refs": [
+        "story_06:u0044_qua0"
+      ],
+      "kind": "prospective_qualification_revision",
+      "new_record": "story_06:u0044_qua0",
+      "supersedes": "story_06:u0043_qua0",
+      "interpretation": "Earlier inference concerned the pair's requested type. Current explicit one-left/one-right specification governs from this endpoint onward; retain the earlier inferred annotation and unchanged earlier prefix."
+    },
+    {
+      "case_id": "factive_remember",
+      "unit_id": "story_01_u0083",
+      "affected_ids": [
+        "story_01:u0083_recollection",
+        "story_01:u0083_remember",
+        "story_01:u0083_lunch"
+      ],
+      "evidence_refs": [
+        "story_01:u0083_remember"
+      ],
+      "kind": "context_attribution_semantics",
+      "target": "story_01:u0083_recollection",
+      "operator": "remembered_content",
+      "projection": "factive_relative_to_parent",
+      "interpretation": "Broad kind believed does not turn this remembered lunch into conjecture. Factivity is evaluated within the attribution's surrounding narrative context, with uncertainty retained."
+    },
+    {
+      "case_id": "factive_discover_in_imagining",
+      "unit_id": "story_01_u0118",
+      "affected_ids": [
+        "story_01:u0118_discover",
+        "story_01:u0118_knowledge",
+        "story_01:u0118_affair",
+        "story_01:u0117_reaction"
+      ],
+      "evidence_refs": [
+        "story_01:u0118_discover"
+      ],
+      "kind": "context_attribution_semantics",
+      "target": "story_01:u0118_knowledge",
+      "operator": "discovered_content",
+      "projection": "factive_relative_to_parent",
+      "interpretation": "Discovery licenses content inside the imagined parent only; never global actual-world affair."
+    },
+    {
+      "case_id": "excluded_contact_alternatives",
+      "unit_id": "story_06_u0054",
+      "affected_ids": [
+        "story_06:u0054_excluded_routes",
+        "story_06:u0054_other_connection",
+        "story_06:u0054_father_connection",
+        "story_06:u0054_qua5"
+      ],
+      "evidence_refs": [
+        "story_06:u0054_excluded_routes"
+      ],
+      "kind": "context_formula",
+      "target": "story_06:u0054_excluded_routes",
+      "formula": {
+        "op": "not",
+        "body": {
+          "op": "or_open",
+          "items": [
+            {
+              "op": "exists_local",
+              "bind": "generic contact-route participants",
+              "body": {
+                "op": "qualified_atom",
+                "id": "story_06:u0054_other_connection"
+              }
+            },
+            {
+              "op": "exists_local",
+              "bind": "generic contact only; father is fixed",
+              "body": {
+                "op": "qualified_atom",
+                "id": "story_06:u0054_father_connection"
+              }
+            }
+          ],
+          "domain": "job-facilitating social connection routes"
+        }
+      },
+      "interpretation": "Excluded illustrative hiring connections, not universal ignorance of other people. Alternative generic participants are branch-local; repeated generic node does not assert one actual common contact."
+    }
+  ]
+}

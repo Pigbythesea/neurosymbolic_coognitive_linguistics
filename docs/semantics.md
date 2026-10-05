@@ -1,5 +1,18 @@
 # Semantic experiment compiler
 
+**Current interface:** Annotation review is closed and build
+`5cd83e0779bb5440da47` is accepted. Use the scoped interface and execution workflow
+in [reviewed_downstream.md](reviewed_downstream.md). The active destination is
+`data/processed/semantics-reviewed`. In Windows CMD, the integrated command is
+`call scripts\prepare_analysis.cmd` using `.venv-analysis`. The generic
+`verify_semantics.py` entry point now dispatches reviewed builds to the full
+accepted-corpus verifier.
+
+## Historical legacy interface
+
+The remaining sections document the older incremental GraphDelta interface and
+its archived builds. They do not define the accepted review's targets or workflow.
+
 The compiler turns saved Deniz annotations into a common measurement layer for encoding, decoding, and concept geometry. It is ordinary deterministic Python: it makes no LLM calls, does not train a model, and never contacts the cluster. Annotation generation continues separately.
 
 ## Run locally (Windows CMD)

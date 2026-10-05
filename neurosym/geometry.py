@@ -87,18 +87,27 @@ def fdr_bh(pvalues):
     return result
 
 
-def semantic_occurrences(data, stories, kind, *, reviewed_only=False):
-    records, seen = [], set()
+def semantic_occurrences(data, stories, kind, *, reviewed_only=False, scope_mode="pooled"):
+    if scope_mode not in {"pooled", "scoped"}:
+        raise ValueError("Unknown semantic scope comparison policy.")
+    records, seen = [], {}
     for story in stories:
         for record in data.semantics.records(story, "occurrences"):
             if record["kind"] != kind or record.get("grounding_resolved") is False:
                 continue
-            if reviewed_only and record["annotation_review_status"] not in {"reviewed", "adjudicated", "human_reviewed"}:
+            if reviewed_only and record["annotation_review_status"] not in {"reviewed", "adjudicated", "human_reviewed", "accepted_reviewed"}:
                 continue
-            key = record["source_id"], object_hash({"kind": kind, "label": record["label"]})
+            descriptor = {"kind": kind, "label": record["label"]}
+            if scope_mode == "scoped":
+                descriptor["scope"] = record.get("scope")
+            key = record["source_id"], object_hash(descriptor)
             if key not in seen:
-                records.append({**record, "item_id": key[1]})
-                seen.add(key)
+                item = {**record, "item_id": key[1], "scope_observations": []}
+                records.append(item)
+                seen[key] = item
+            observation = {"scope": record.get("scope"), "expression_ref": record.get("expression_ref")}
+            if observation not in seen[key]["scope_observations"]:
+                seen[key]["scope_observations"].append(observation)
     return records
 
 
@@ -219,7 +228,7 @@ def native_source_vectors(data, options, split):
 
 def matches(description, label):
     """Do not conflate distinct non-null senses or fillers absent in a descriptor."""
-    return all(value is None or description.get(key) == value for key, value in label.items())
+    return all(description.get(key) == value for key, value in label.items())
 
 
 def trace_signature(group, record, view):
@@ -230,12 +239,15 @@ def trace_signature(group, record, view):
         return None
     mask = group["site_mask"][()].astype(bool)
     primitives = [(json.loads(child.attrs["description"]), child["scores"][()]) for child in group["primitive"].values()]
-    if kind in {"concept", "predicate"}:
+    if kind in {"concept", "predicate", "literal", "scope"}:
         values = [scores for desc, scores in primitives if matches(desc, label)]
         return np.mean(values, axis=0)[mask] if values else None
-    if kind not in {"role", "discourse"}:
-        raise ValueError("Grounding profiles support concept, predicate, role and discourse; use native/latent/encoding-implied for other labels.")
-    if kind == "role":
+    if "grounding_query" in record:
+        query = record["grounding_query"]
+        anchor, filler, relation_label = query["anchor"], query["filler"], query["operation"]
+    elif kind not in {"role", "discourse"}:
+        raise ValueError("No declared grounding operator for this label; use its native, latent or encoding-implied view.")
+    elif kind == "role":
         anchor, filler = label["predicate"], label["filler"]
         if "event" in filler:
             filler = filler["event"]
@@ -297,7 +309,10 @@ def implied_vectors(path, data, stories, component=None):
 def run_geometry(data, options):
     split = partition(data.semantics, options["fold"])
     data.validate_partition(split["train"], test=split["test"])
-    records = semantic_occurrences(data, split["test"], options["kind"], reviewed_only=options.get("reviewed_only", False))
+    records = semantic_occurrences(data, split["test"], options["kind"], reviewed_only=options.get("reviewed_only", False),
+                                   scope_mode=options.get("scope_mode", "pooled"))
+    if options["view"] == "grounding" and options["kind"] == "configuration":
+        raise ValueError("Whole configurations have native/latent/encoding-implied geometries; their ordered role maps are separate grounding items.")
     if options["view"] != "native":
         parent = Path(options["from_run"])
         receipt = read_json(parent / "complete.json")
@@ -331,7 +346,7 @@ def run_geometry(data, options):
             sites = ([name for name, ok in zip(data.spatial.names, mask, strict=True) if ok] if options["modality"] == "brain"
                      else [f"coordinate_group_{i}" for i in np.flatnonzero(mask)])
             write_report(directory / "coordinates.json", {"sites": sites, "parent_fit": options["parent_identity_hash"],
-                         "layout": "ordered source-site x target-site, row-major" if options["kind"] in {"role", "discourse"} and options["view"] == "grounding"
+                         "layout": "ordered source-site x target-site, row-major" if options["kind"] in {"role", "discourse", "reference", "identity", "qualification", "state_update"} and options["view"] == "grounding"
                          else "local site scores" if options["view"] == "grounding" else "query-conditioned latent coordinates; only this fitted basis"})
         elif options["view"] == "encoding-implied":
             sources = implied_vectors(options["from_run"], data, split["test"], options.get("component"))
@@ -339,6 +354,10 @@ def run_geometry(data, options):
         else:
             raise ValueError("Unknown geometry family.")
         report = summarize_geometry(records, vectors, directory, min_stories=options["min_stories"])
+        write_report(directory / "scope-coverage.json", {"mode": options.get("scope_mode", "pooled"),
+            "occurrences": [{"source_id": r["source_id"], "item_id": r["item_id"], "scope_observations": r["scope_observations"]}
+                            for r in records],
+            "interpretation": "Pooled items explicitly marginalize recorded scopes; scoped items match the full symbolic scope. Neither projects hypothetical content into actual facts."})
         write_report(directory / "complete.json", {"identity": identity, "partition": split, "geometry": report,
                      "interpretation": "Geometry of labelled contexts, not isolated causal concept responses. Co-occurring meaning and lexical content remain possible explanations."})
     return directory

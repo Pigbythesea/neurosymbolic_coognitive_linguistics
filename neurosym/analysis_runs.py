@@ -45,11 +45,18 @@ def composition_partition(dataset, split, keys):
         for source in dataset.records(story, "sources"):
             for config in source["configurations"]:
                 if (source["id"], config["key"]) in eligible:
+                    if "selector" in config:
+                        selectors[source["id"]].add(object_hash(config["selector"]))
+                        continue
                     event = events[config["event_id"]]
                     selectors[source["id"]].add(object_hash({"predicate": event["predicate"],
                          "trigger": [event["trigger"]["start"], event["trigger"]["end"]]}))
         for query in dataset.records(story, "queries"):
             ast = query["input"]["ast"]
+            if ast["op"] == "reviewed_choice" and ast["task"] in {"role", "binding", "scope", "polarity", "compose"}:
+                if object_hash(ast["anchor"]) in selectors[query["source_id"]]:
+                    query_ids.append(query["id"])
+                continue
             if ast["op"] in {"role", "binding", "status", "polarity"} and object_hash(ast["event"]) in selectors[query["source_id"]]:
                 query_ids.append(query["id"])
     if not query_ids:
@@ -63,7 +70,8 @@ def composition_partition(dataset, split, keys):
 def run_directory(data, kind, options):
     modules = ["analysis_runs.py", "analysis_data.py", "decoders.py", "decoder_fit.py",
                "encoding.py", "geometry.py", "spatial.py", "semantic_features.py",
-               "semantic_queries.py", "dataset.py", "model_features.py", "temporal.py"]
+               "semantic_queries.py", "dataset.py", "model_features.py", "temporal.py", "reviewed_queries.py",
+               "reviewed_graph.py", "reviewed_archive.py", "reviewed_compile.py"]
     identity = {"format_version": 1, "kind": kind, "options": options,
                 "config": data.config, "semantic_build_hash": data.semantics.build_hash,
                 "spatial_hash": object_hash(data.spatial.identity),

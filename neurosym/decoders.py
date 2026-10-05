@@ -37,6 +37,8 @@ def _descriptor_atoms(serialized, path):
         elif isinstance(item, str):
             words.append(key + "=" + item.casefold())
             words.extend("word:" + s for s in re.findall(r"[\w'-]+", item.casefold()))
+        elif isinstance(item, bool):
+            words.append(key + "=" + str(item).lower())
         elif isinstance(item, (float, int)):
             slot = int(hashlib.sha256(key.encode()).hexdigest()[:8], 16) % len(numbers)
             numbers[slot] += np.sign(item) * math.log1p(abs(item)) / 10
@@ -53,6 +55,16 @@ def query_vocabulary(examples):
         objects = [inputs["ast"], {"ast": inputs["ast"], "binding_candidates": inputs.get("binding_candidates", [])},
                    *inputs["candidates"], *inputs.get("binding_candidates", [])]
         ast = inputs["ast"]
+        if ast["op"] == "reviewed_choice":
+            objects.extend([ast["anchor"], ast["operation"]])
+            if ast["task"] in {"relation", "identity"}:
+                objects.extend(ast["anchor"].values())
+                objects.extend({"op": "event_relation" if ast["task"] == "relation" else "identity",
+                                "relation": c["label"], "direction": "out"} for c in inputs["candidates"])
+            if ast["task"] == "binding":
+                for c in inputs["candidates"]:
+                    objects.extend(a["filler"] for a in c["assignment"])
+                    objects.extend({"op": "role", "role": a["role"], "position": a["position"]} for a in c["assignment"])
         objects.extend(ast.get("steps", []))
         for key in ("event", "start", "source", "target", "left", "right"):
             if key in ast:
@@ -220,10 +232,46 @@ class SemanticDecoder(nn.Module):
             la, ra = ls.softmax(0), rs.softmax(0)
             return la @ relation(operation) @ ra + 0.5 * (la @ ls + ra @ rs)
 
+        def bind_many(left, choices, operation):
+            # Algebraically identical to repeated bind(), but the anchor-pair
+            # product is shared across the complete prefix candidate catalog.
+            ls = primitive(left)
+            rs = torch.stack([primitive(c) for c in choices])
+            la, ra = ls.softmax(0), rs.softmax(-1)
+            return (ra @ (la @ relation(operation)) + 0.5 * (la @ ls + (ra * rs).sum(-1))).unbind()
+
         op = ast["op"]
         if op in {"role", "reference", "status", "polarity", "compose"}:
             prime(candidates)
-        if op == "compose":
+        if op == "reviewed_choice":
+            task, anchor = ast["task"], ast["anchor"]
+            if task == "compose":
+                prime(candidates)
+                state = primitive(anchor).softmax(0)
+                for step in ast["steps"]:
+                    state = state @ relation(step).softmax(-1)
+                    state = state * self.site_mask
+                    state = state / state.sum().clamp_min(1e-8)
+                    if capture:
+                        trace["intermediate"].append({"operation": step, "routing": state})
+                scores = [state @ primitive(c) for c in candidates]
+                latent = state @ e
+            elif task == "binding":
+                prime([a["filler"] for c in candidates for a in c["assignment"]])
+                scores = [torch.stack([F.logsigmoid(bind(anchor, a["filler"],
+                    {"op": "role", "role": a["role"], "position": a["position"]})) for a in c["assignment"]]).mean()
+                          for c in candidates]
+                latent = primitive(anchor).softmax(0) @ e
+            elif task in {"relation", "identity"}:
+                scores = [bind(anchor["source"], anchor["target"],
+                    {"op": "event_relation" if task == "relation" else "identity", "relation": c["label"], "direction": "out"})
+                          for c in candidates]
+                latent = primitive(anchor["source"]).softmax(0) @ e
+            else:
+                prime(candidates)
+                scores = bind_many(anchor, candidates, ast["operation"])
+                latent = primitive(anchor).softmax(0) @ e
+        elif op == "compose":
             state = primitive(ast["start"]).softmax(0)
             for step in ast["steps"]:
                 matrix = relation(step)

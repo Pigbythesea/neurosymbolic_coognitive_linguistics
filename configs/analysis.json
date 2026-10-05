@@ -2,7 +2,7 @@
   "format_version": 1,
   "raw": "data/raw/deniz",
   "contract": "data/processed/deniz/contract.json",
-  "semantics": "data/processed/semantics-v5",
+  "semantics": "data/processed/semantics-reviewed",
   "spatial": "data/processed/spatial/schaefer200",
   "output": "data/analysis",
   "require_complete_annotations": true,
