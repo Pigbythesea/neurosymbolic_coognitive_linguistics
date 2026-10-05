@@ -1,0 +1,7 @@
+{
+  "format_version": 1,
+  "max_patch_requests_per_visit": 4,
+  "story_sweeps": 2,
+  "transient_retry_delays_seconds": [10, 30, 60],
+  "heartbeat_seconds": 30
+}

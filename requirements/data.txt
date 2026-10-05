@@ -1,0 +1,5 @@
+# Data ingestion only; wheels available for local Python 3.12 and cluster 3.11.
+numpy==2.3.3
+h5py==3.14.0
+praatio==6.2.0
+typing-extensions==4.16.0

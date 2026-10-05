@@ -1,0 +1,16 @@
+{
+  "format_version": 1,
+  "protocol": "joint-source-v5",
+  "model": "gpt-6-luna",
+  "reasoning_effort": "none",
+  "passes": ["primary", "blind"],
+  "default_passes": ["primary"],
+  "timeout_seconds": 600,
+  "annotation_attempts": 3,
+  "prompt": "prompts/graph_annotation_source.txt",
+  "schema": "schemas/graph-delta.schema.json",
+  "corpus": "data/processed/corpus",
+  "output": "data/annotations/deniz-luna-v5",
+  "reuse_original_drafts_from": "data/annotations/deniz-luna-v4",
+  "notes": "Source-location selection is separate from semantic-record completion: repairs may add missing nodes/contexts and remove unsupported records with dependent links. No forced selection from existing nodes. Original v4 drafts are reused only when source/history/prompt/schema/model still match exactly; repaired graphs are never imported. Graph schema v2 and scientific scope retained. At most 3 responses including a reused original draft per unit. No semantic critic, automatic human revision, API fallback or model upgrade."
+}

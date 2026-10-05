@@ -1,0 +1,403 @@
+{
+  "format_version": 1,
+  "created_utc": "2026-10-04T00:34:22.546957+00:00",
+  "derived_from_manifest_sha256": "1a63031e95d8db3acea64688dde22f7dab4e5bf1f1c2a9593d58690d7b7ffa98",
+  "selection": {
+    "profile": "reading-core",
+    "description": "All Deniz reading responses, text, timing, features, cortical mappers, and source documentation.",
+    "datasets": [
+      "deniz"
+    ],
+    "files": 57,
+    "bytes": 26525553107,
+    "selection_sha256": "0d1025a0f653251a486e85ddc00975b5c7e27955118c10273986761df6d8b933"
+  },
+  "datasets": {
+    "deniz": {
+      "source": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri",
+      "revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+      "selection": "Complete released reading responses and associated text, timing, features, mappers, and code.",
+      "files": [
+        {
+          "path": "LICENSE",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/LICENSE",
+          "bytes": 6894,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "46633d9b124044cc1ff3d3891e45d3d866b9c6d29896d62d81072b6c5868816b"
+        },
+        {
+          "path": "README.md",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/README.md",
+          "bytes": 3389,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "4f68f71d984e3e5f5afe6e7fddf5c21be4bd7a2fd2ab3c4fdc02acdc0ee1773b"
+        },
+        {
+          "path": "code/example.py",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/code/example.py",
+          "bytes": 1220,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "424d7b57c0133703a1f55fcbb98fba288a4b95648663448e2c03e78fcac89906"
+        },
+        {
+          "path": "code/utils.py",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/code/utils.py",
+          "bytes": 2397,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "0cb6ba79e3ff82b85af8b05d90350a59f2e7540d6e1d320211cd20d6e8426e0c"
+        },
+        {
+          "path": "datacite.yml",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/datacite.yml",
+          "bytes": 2382,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "a7ef0a80eae6b8e877c2088c81451edd4ad3ed7b4bd52288a7902d8d6a2b5d72"
+        },
+        {
+          "path": "features/features_trn_NEW.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/features/features_trn_NEW.hdf",
+          "bytes": 32843528,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018"
+        },
+        {
+          "path": "features/features_val_NEW.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/features/features_val_NEW.hdf",
+          "bytes": 2589168,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "81fdce9d0ca0de07a2fabdb7bd53ab762028b8d0866ba0dd5c385814e73a2540"
+        },
+        {
+          "path": "features/moth_en_moten_20210928.npz",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/features/moth_en_moten_20210928.npz",
+          "bytes": 211228850,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018"
+        },
+        {
+          "path": "mappers/subject01_mappers.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/mappers/subject01_mappers.hdf",
+          "bytes": 4772439,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "044fce5c3442c5c67258deadb8ee4f4a05db4de2e21e44c4abc33f8098bbc685"
+        },
+        {
+          "path": "mappers/subject02_mappers.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/mappers/subject02_mappers.hdf",
+          "bytes": 5601443,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "7036991e0a43241065c6d0f364ba7a5d8f20b029b895f6b6f79d780cad3ea169"
+        },
+        {
+          "path": "mappers/subject03_mappers.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/mappers/subject03_mappers.hdf",
+          "bytes": 5048806,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "1640403fd214928e00bb324c316972e931b30e27d156871fbe21ea00443b320d"
+        },
+        {
+          "path": "mappers/subject04_mappers.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/mappers/subject04_mappers.hdf",
+          "bytes": 3653613,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "ddbd7a0f528551cdca7f370c217dbe84130f1ea0a8b7004a34ee17e82be05bf3"
+        },
+        {
+          "path": "mappers/subject05_mappers.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/mappers/subject05_mappers.hdf",
+          "bytes": 4462972,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "5e82975ae87a6b4fc3f7966864214ae8cacc25648a9f87123ccc54ddf08ccf3b"
+        },
+        {
+          "path": "mappers/subject06_mappers.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/mappers/subject06_mappers.hdf",
+          "bytes": 5487185,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "895374832ec775b1d353b25baf785011d1368a4efb576d39bec3ac4d7777e37c"
+        },
+        {
+          "path": "mappers/subject07_mappers.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/mappers/subject07_mappers.hdf",
+          "bytes": 5140133,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "0e334ea77f37389921ab911dc040fe87c608ea7108951b69484500307c61e906"
+        },
+        {
+          "path": "mappers/subject08_mappers.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/mappers/subject08_mappers.hdf",
+          "bytes": 5518625,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "c7980c4007516739bdcc844e43c33d9fe3db7879cbe3a42e9d00bcd169468921"
+        },
+        {
+          "path": "mappers/subject09_mappers.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/mappers/subject09_mappers.hdf",
+          "bytes": 5036654,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "6e6166fdb3102c3d5006eb88ad29fb908ed8d070be4c936be4649e84142fac37"
+        },
+        {
+          "path": "responses/subject01_reading_fmri_data_trn.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/responses/subject01_reading_fmri_data_trn.hdf",
+          "bytes": 2555371208,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018"
+        },
+        {
+          "path": "responses/subject01_reading_fmri_data_val.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/responses/subject01_reading_fmri_data_val.hdf",
+          "bytes": 403719952,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018"
+        },
+        {
+          "path": "responses/subject02_reading_fmri_data_trn.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/responses/subject02_reading_fmri_data_trn.hdf",
+          "bytes": 2530709840,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018"
+        },
+        {
+          "path": "responses/subject02_reading_fmri_data_val.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/responses/subject02_reading_fmri_data_val.hdf",
+          "bytes": 399823744,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018"
+        },
+        {
+          "path": "responses/subject03_reading_fmri_data_trn.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/responses/subject03_reading_fmri_data_trn.hdf",
+          "bytes": 2298111880,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018"
+        },
+        {
+          "path": "responses/subject03_reading_fmri_data_val.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/responses/subject03_reading_fmri_data_val.hdf",
+          "bytes": 363075984,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018"
+        },
+        {
+          "path": "responses/subject04_reading_fmri_data_trn.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/responses/subject04_reading_fmri_data_trn.hdf",
+          "bytes": 2164411096,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018"
+        },
+        {
+          "path": "responses/subject04_reading_fmri_data_val.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/responses/subject04_reading_fmri_data_val.hdf",
+          "bytes": 342173624,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018"
+        },
+        {
+          "path": "responses/subject05_reading_fmri_data_trn.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/responses/subject05_reading_fmri_data_trn.hdf",
+          "bytes": 2539056280,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018"
+        },
+        {
+          "path": "responses/subject05_reading_fmri_data_val.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/responses/subject05_reading_fmri_data_val.hdf",
+          "bytes": 401142384,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018"
+        },
+        {
+          "path": "responses/subject06_reading_fmri_data_trn.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/responses/subject06_reading_fmri_data_trn.hdf",
+          "bytes": 2588298469,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018"
+        },
+        {
+          "path": "responses/subject06_reading_fmri_data_val.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/responses/subject06_reading_fmri_data_val.hdf",
+          "bytes": 409398745,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018"
+        },
+        {
+          "path": "responses/subject07_reading_fmri_data_trn.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/responses/subject07_reading_fmri_data_trn.hdf",
+          "bytes": 2928189360,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018"
+        },
+        {
+          "path": "responses/subject07_reading_fmri_data_val.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/responses/subject07_reading_fmri_data_val.hdf",
+          "bytes": 462620864,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018"
+        },
+        {
+          "path": "responses/subject08_reading_fmri_data_trn.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/responses/subject08_reading_fmri_data_trn.hdf",
+          "bytes": 2517670496,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018"
+        },
+        {
+          "path": "responses/subject08_reading_fmri_data_val.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/responses/subject08_reading_fmri_data_val.hdf",
+          "bytes": 397763680,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018"
+        },
+        {
+          "path": "responses/subject09_reading_fmri_data_trn.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/responses/subject09_reading_fmri_data_trn.hdf",
+          "bytes": 2528947623,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018"
+        },
+        {
+          "path": "responses/subject09_reading_fmri_data_val.hdf",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/responses/subject09_reading_fmri_data_val.hdf",
+          "bytes": 399731815,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018"
+        },
+        {
+          "path": "stimuli/story_01.txt",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/story_01.txt",
+          "bytes": 12341,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "713f74d618a533087ca9ddfa2af6c72baf2e5607560b4b22cd65b3c427368f9e"
+        },
+        {
+          "path": "stimuli/story_02.txt",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/story_02.txt",
+          "bytes": 8466,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "b278b10af689c70e4f2f8d076deddc55fe65204a72e49e27070affbfe092f4ea"
+        },
+        {
+          "path": "stimuli/story_03.txt",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/story_03.txt",
+          "bytes": 11010,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "813cc19ad51caafec209990c3bbc22fb3d24b3c5914588b5dd4fe88df492322a"
+        },
+        {
+          "path": "stimuli/story_04.txt",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/story_04.txt",
+          "bytes": 10220,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "293c3d3108316350bf62145fd6f159469cb52dd5faff72cc0b2de1ec6b9736db"
+        },
+        {
+          "path": "stimuli/story_05.txt",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/story_05.txt",
+          "bytes": 11640,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "f7d7db184c5319e3a99468deb2f218821e3560c51a7336d2cac7301270f06b43"
+        },
+        {
+          "path": "stimuli/story_06.txt",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/story_06.txt",
+          "bytes": 14343,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "778775579ac7995cb36b63736ee38fc24222d90c9154f820762206919e557817"
+        },
+        {
+          "path": "stimuli/story_07.txt",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/story_07.txt",
+          "bytes": 16932,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "5b7d60239d238b91c1409431f33644b46c95e831eee0b63f5f2947ebeb0c5819"
+        },
+        {
+          "path": "stimuli/story_08.txt",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/story_08.txt",
+          "bytes": 13904,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "812ce90647b3fcf9d559fe5d38b32ca8527761d85fe7c54a30885d92e9206d0d"
+        },
+        {
+          "path": "stimuli/story_09.txt",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/story_09.txt",
+          "bytes": 10494,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "bccae91759ba569787551a833d73d2b2077d26420434eb9ef7e21bc010775682"
+        },
+        {
+          "path": "stimuli/story_10.txt",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/story_10.txt",
+          "bytes": 9464,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "231c971e3b8c1e3bff3891497cc658eaa20087309baaa56bbea96c081efdff52"
+        },
+        {
+          "path": "stimuli/story_11.txt",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/story_11.txt",
+          "bytes": 9793,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "fff69c523981bc67c34a50b7827a4973bb54a777ed49f56506ee58bc39064a80"
+        },
+        {
+          "path": "stimuli/textgrids/stimulus_textgrids/alternateithicatom.TextGrid",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/textgrids/stimulus_textgrids/alternateithicatom.TextGrid",
+          "bytes": 357285,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "442bd03fdb9c96afeb31f69b8732b6de94ad81cc0bb5f7cf7e14d72184b82906"
+        },
+        {
+          "path": "stimuli/textgrids/stimulus_textgrids/avatar.TextGrid",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/textgrids/stimulus_textgrids/avatar.TextGrid",
+          "bytes": 247662,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "8e17a55ac9ec159531be1910ac68f8126985565dd8344f1f2f2d6232917f17ca"
+        },
+        {
+          "path": "stimuli/textgrids/stimulus_textgrids/howtodraw.TextGrid",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/textgrids/stimulus_textgrids/howtodraw.TextGrid",
+          "bytes": 331687,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "2b6f1a23d53eb8cd223f20dfa941569a7b1a795d47b9b4eb901a0063174d4830"
+        },
+        {
+          "path": "stimuli/textgrids/stimulus_textgrids/legacy.TextGrid",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/textgrids/stimulus_textgrids/legacy.TextGrid",
+          "bytes": 349883,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "0cb0faf5a793d1c7aed38d1da2a254190c41b1cab8f5caa089fb330d5675f428"
+        },
+        {
+          "path": "stimuli/textgrids/stimulus_textgrids/life.TextGrid",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/textgrids/stimulus_textgrids/life.TextGrid",
+          "bytes": 283143,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "19ca4b90ccbc6a5ee52a712578a0f77442c2cea5c03fe89fe74c950d33959383"
+        },
+        {
+          "path": "stimuli/textgrids/stimulus_textgrids/myfirstdaywiththeyankees.TextGrid",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/textgrids/stimulus_textgrids/myfirstdaywiththeyankees.TextGrid",
+          "bytes": 412261,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "730d0bd754f991094f41220e38ad4040bad972463d00bf02375f0cd1d8e89fe4"
+        },
+        {
+          "path": "stimuli/textgrids/stimulus_textgrids/naked.TextGrid",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/textgrids/stimulus_textgrids/naked.TextGrid",
+          "bytes": 505440,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "145542f123f20e038667b645899cccb6940b04c07f656a4ec192eac87ec4ea1d"
+        },
+        {
+          "path": "stimuli/textgrids/stimulus_textgrids/odetostepfather.TextGrid",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/textgrids/stimulus_textgrids/odetostepfather.TextGrid",
+          "bytes": 419193,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "beae26356ceed76d5960d3aa84d4539c343f0478f38997aeec311184fff37448"
+        },
+        {
+          "path": "stimuli/textgrids/stimulus_textgrids/souls.TextGrid",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/textgrids/stimulus_textgrids/souls.TextGrid",
+          "bytes": 327023,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "a652c8ebef7a481701763be78085263a968f65a9d615d7a1f203d7f1df089e63"
+        },
+        {
+          "path": "stimuli/textgrids/stimulus_textgrids/undertheinfluence.TextGrid",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/textgrids/stimulus_textgrids/undertheinfluence.TextGrid",
+          "bytes": 278981,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "b7c1c09c8c2d413bc083427261cfe5351a24c1a7a5a39c0a9be069ac09c9e526"
+        },
+        {
+          "path": "stimuli/textgrids/stimulus_textgrids/wheretheressmoke.TextGrid",
+          "url": "https://gin.g-node.org/denizenslab/narratives_reading_listening_fmri/raw/d51d64bf5026441edfbec804d6ffeaea92bb3018/stimuli/textgrids/stimulus_textgrids/wheretheressmoke.TextGrid",
+          "bytes": 295200,
+          "git_revision": "d51d64bf5026441edfbec804d6ffeaea92bb3018",
+          "source_sha256": "05c461924c368471e55fb840e34a38794ab9fe5c303b8ddcea41cc326c5fd93c"
+        }
+      ]
+    }
+  }
+}

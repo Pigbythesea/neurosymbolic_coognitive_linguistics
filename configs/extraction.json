@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "corpus": "data/processed/corpus",
+  "data_contract": "data/processed/deniz/contract.json",
+  "model_lock": "manifests/frozen-models.lock.json",
+  "model_cache": ".cache/huggingface/hub",
+  "output": "data/features/frozen",
+  "alignment": "data/processed/alignment",
+  "tokenization": "data/processed/tokenization",
+  "compute_dtype": "bfloat16",
+  "storage_dtype": "float32",
+  "attention_implementation": "sdpa",
+  "chunk_tokens": 256,
+  "context_policy": "full_story",
+  "text_policy": "raw_transcript_with_brace_event_tags_masked",
+  "representation": "last_token_of_independently_tokenized_prefix",
+  "layers": "all",
+  "models": [
+    {"id": "qwen35-9b-base", "repo": "Qwen/Qwen3.5-9B-Base", "family": "qwen3.5", "stage": "base", "loader": "qwen3_5"},
+    {"id": "qwen35-9b-post", "repo": "Qwen/Qwen3.5-9B", "family": "qwen3.5", "stage": "posttrained", "loader": "qwen3_5"},
+    {"id": "olmo3-7b-base", "repo": "allenai/Olmo-3-1025-7B", "family": "olmo3", "stage": "base", "loader": "causal_lm"},
+    {"id": "olmo3-7b-instruct", "repo": "allenai/Olmo-3-7B-Instruct", "family": "olmo3", "stage": "instruct", "loader": "causal_lm"},
+    {"id": "qwen38-27b", "repo": "Qwen/Qwen3.8-27B", "family": "qwen3.8", "stage": "posttrained", "loader": "qwen3_5"}
+  ]
+}

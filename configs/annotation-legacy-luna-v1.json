@@ -1,0 +1,14 @@
+{
+  "format_version": 1,
+  "model": "gpt-6-luna",
+  "reasoning_effort": "none",
+  "passes": ["primary", "blind"],
+  "default_passes": ["primary"],
+  "timeout_seconds": 600,
+  "max_structural_repairs": 2,
+  "prompt": "prompts/graph_annotation.txt",
+  "schema": "schemas/graph-delta.schema.json",
+  "corpus": "data/processed/corpus",
+  "output": "data/annotations/deniz-luna-v1",
+  "notes": "No reasoning; one full prefix-only pass by default. The blind pass is optional and must be requested explicitly. Same-model agreement measures repeatability, not label accuracy. Human semantic review remains necessary. Reuses ChatGPT CLI authentication; no API-key fallback."
+}

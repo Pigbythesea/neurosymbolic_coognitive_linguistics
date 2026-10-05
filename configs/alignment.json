@@ -1,0 +1,16 @@
+{
+  "format_version": 1,
+  "corpus": "data/processed/corpus",
+  "data_contract": "data/processed/deniz/contract.json",
+  "output": "data/processed/alignment",
+  "leading_silence_trs": 5,
+  "sample_position_within_tr": 0.5,
+  "response_trim_start": 10,
+  "response_trim_end": 10,
+  "availability": "offset_seconds",
+  "resampling": "causal_bin_mean",
+  "fir_delays_trs": [1, 2, 3, 4],
+  "clock_source": "Deniz et al. 2019 methods: 5 leading TRs; samples at volume midpoints. Verified against released numwords feature without fitting brain responses.",
+  "clock_source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6764208/",
+  "notes": "A completed word or unit contributes to the first volume midpoint at or after availability. Missing timestamps remain missing. Unresolved-event support is conservatively masked. All lags are constructed within each story before trimming. This causal resampler differs deliberately from the publication's symmetric Lanczos interpolation."
+}

@@ -1,0 +1,17 @@
+{
+  "format_version": 1,
+  "repository": "ThomasYeoLab/CBIG",
+  "revision": "634f676630929a71297852d01dd92a287103e861",
+  "atlas": "Schaefer2018_200Parcels_17Networks_order",
+  "source_directory": "stable_projects/brain_parcellation/Schaefer2018_LocalGlobal/Parcellations/FreeSurfer5.3/fsaverage/label",
+  "vertices_per_hemisphere": 163842,
+  "parcels": 200,
+  "raw": "data/raw/deniz",
+  "contract": "data/processed/deniz/contract.json",
+  "assets": "data/atlases/schaefer200",
+  "output": "data/processed/spatial/schaefer200",
+  "assignment": "maximum_surface_label_vote_per_native_voxel",
+  "vote_weights": "absolute_mapper_coefficients_normalized_per_vertex",
+  "ties": "exclude",
+  "hemisphere_order": ["lh", "rh"]
+}

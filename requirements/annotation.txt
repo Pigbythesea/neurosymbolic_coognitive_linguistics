@@ -1,0 +1,5 @@
+-r data.txt
+pydantic==2.12.3
+pydantic-core==2.41.4
+annotated-types==0.7.0
+typing-inspection==0.4.2

@@ -1,0 +1,785 @@
+{
+  "type": "object",
+  "$defs": {
+    "Argument": {
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "enum": [
+            "agent",
+            "patient",
+            "theme",
+            "recipient",
+            "experiencer",
+            "stimulus",
+            "beneficiary",
+            "instrument",
+            "source",
+            "goal",
+            "location",
+            "time",
+            "manner",
+            "cause",
+            "content",
+            "attribute",
+            "other"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "frame_role": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Frame Role"
+        },
+        "target_kind": {
+          "enum": [
+            "entity",
+            "event",
+            "literal"
+          ],
+          "title": "Target Kind",
+          "type": "string"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "mention_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Mention Id"
+        }
+      },
+      "required": [
+        "role",
+        "frame_role",
+        "target_kind",
+        "target_id",
+        "mention_id"
+      ],
+      "title": "Argument",
+      "type": "object"
+    },
+    "Context": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "reported",
+            "believed",
+            "hypothetical",
+            "desired",
+            "promised",
+            "questioned",
+            "uncertain",
+            "negated"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "holder_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Holder Id"
+        },
+        "attribution_event_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Attribution Event Id"
+        },
+        "parent_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Parent Ids",
+          "type": "array"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Span"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "holder_id",
+        "attribution_event_id",
+        "parent_ids",
+        "evidence"
+      ],
+      "title": "Context",
+      "type": "object"
+    },
+    "Entity": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "concept": {
+          "pattern": "^[a-z0-9][a-z0-9_'-]*$",
+          "title": "Concept",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "person",
+            "group",
+            "animal",
+            "object",
+            "location",
+            "time",
+            "quantity",
+            "abstract",
+            "other",
+            "unresolved"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "first_mention": {
+          "$ref": "#/$defs/Span"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "concept",
+        "kind",
+        "first_mention"
+      ],
+      "title": "Entity",
+      "type": "object"
+    },
+    "EntityUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "entity_id": {
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "attribute": {
+          "title": "Attribute",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        },
+        "operation": {
+          "enum": [
+            "assert",
+            "retract"
+          ],
+          "title": "Operation",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Span"
+        },
+        "status": {
+          "enum": [
+            "explicit",
+            "inferred",
+            "unresolved"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "context_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Context Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "entity_id",
+        "attribute",
+        "value",
+        "operation",
+        "evidence",
+        "status"
+      ],
+      "title": "EntityUpdate",
+      "type": "object"
+    },
+    "Event": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "predicate": {
+          "pattern": "^[a-z0-9][a-z0-9_'-]*$",
+          "title": "Predicate",
+          "type": "string"
+        },
+        "sense_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sense Id"
+        },
+        "trigger": {
+          "$ref": "#/$defs/Span"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Span"
+        },
+        "arguments": {
+          "items": {
+            "$ref": "#/$defs/Argument"
+          },
+          "title": "Arguments",
+          "type": "array"
+        },
+        "polarity": {
+          "enum": [
+            "positive",
+            "negative",
+            "unresolved"
+          ],
+          "title": "Polarity",
+          "type": "string"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "enum": [
+                "asserted",
+                "hypothetical",
+                "desired",
+                "promised",
+                "questioned",
+                "reported",
+                "uncertain"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        },
+        "tense": {
+          "enum": [
+            "past",
+            "present",
+            "future",
+            "unspecified"
+          ],
+          "title": "Tense",
+          "type": "string"
+        },
+        "scope_parent_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scope Parent Id"
+        },
+        "context_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Context Ids",
+          "type": "array"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        }
+      },
+      "required": [
+        "id",
+        "predicate",
+        "sense_id",
+        "trigger",
+        "evidence",
+        "arguments",
+        "polarity",
+        "tense"
+      ],
+      "title": "Event",
+      "type": "object"
+    },
+    "IdentityLink": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "left_entity": {
+          "title": "Left Entity",
+          "type": "string"
+        },
+        "right_entity": {
+          "title": "Right Entity",
+          "type": "string"
+        },
+        "relation": {
+          "enum": [
+            "same",
+            "different",
+            "possible"
+          ],
+          "title": "Relation",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "explicit",
+            "inferred",
+            "unresolved"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "context_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Context Ids",
+          "type": "array"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Span"
+        }
+      },
+      "required": [
+        "id",
+        "left_entity",
+        "right_entity",
+        "relation",
+        "status",
+        "context_ids",
+        "evidence"
+      ],
+      "title": "IdentityLink",
+      "type": "object"
+    },
+    "LiteralValue": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "name",
+            "text",
+            "number",
+            "quantity",
+            "date",
+            "time",
+            "boolean"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Unit"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Span"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "value",
+        "unit",
+        "evidence"
+      ],
+      "title": "LiteralValue",
+      "type": "object"
+    },
+    "Mention": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "entity_id": {
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "span": {
+          "$ref": "#/$defs/Span"
+        },
+        "form": {
+          "enum": [
+            "name",
+            "pronoun",
+            "description",
+            "deictic",
+            "other"
+          ],
+          "title": "Form",
+          "type": "string"
+        },
+        "antecedent_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Antecedent Id"
+        },
+        "reference_status": {
+          "enum": [
+            "explicit",
+            "inferred",
+            "unresolved",
+            "first_mention"
+          ],
+          "title": "Reference Status",
+          "type": "string"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        }
+      },
+      "required": [
+        "id",
+        "entity_id",
+        "span",
+        "form",
+        "antecedent_id",
+        "reference_status"
+      ],
+      "title": "Mention",
+      "type": "object"
+    },
+    "Relation": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "before",
+            "after",
+            "overlap",
+            "causes",
+            "motivates",
+            "enables",
+            "condition",
+            "contrast",
+            "elaboration",
+            "same_event"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "source_event": {
+          "title": "Source Event",
+          "type": "string"
+        },
+        "target_event": {
+          "title": "Target Event",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Span"
+        },
+        "status": {
+          "enum": [
+            "explicit",
+            "inferred",
+            "unresolved"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "context_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Context Ids",
+          "type": "array"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "source_event",
+        "target_event",
+        "evidence",
+        "status"
+      ],
+      "title": "Relation",
+      "type": "object"
+    },
+    "Span": {
+      "additionalProperties": false,
+      "properties": {
+        "start": {
+          "minimum": 0,
+          "title": "Start",
+          "type": "integer"
+        },
+        "end": {
+          "exclusiveMinimum": 0,
+          "title": "End",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "Span",
+      "type": "object"
+    },
+    "Uncertainty": {
+      "additionalProperties": false,
+      "properties": {
+        "span": {
+          "$ref": "#/$defs/Span"
+        },
+        "category": {
+          "enum": [
+            "reference",
+            "role",
+            "predicate",
+            "scope",
+            "discourse",
+            "text"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "span",
+        "category",
+        "explanation"
+      ],
+      "title": "Uncertainty",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "edits": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "op": {
+            "type": "string",
+            "enum": [
+              "add",
+              "replace",
+              "remove"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/$defs/Span"
+              },
+              {
+                "$ref": "#/$defs/Entity"
+              },
+              {
+                "$ref": "#/$defs/Mention"
+              },
+              {
+                "$ref": "#/$defs/Argument"
+              },
+              {
+                "$ref": "#/$defs/Event"
+              },
+              {
+                "$ref": "#/$defs/Relation"
+              },
+              {
+                "$ref": "#/$defs/EntityUpdate"
+              },
+              {
+                "$ref": "#/$defs/Uncertainty"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/$defs/Span"
+                    },
+                    {
+                      "$ref": "#/$defs/Entity"
+                    },
+                    {
+                      "$ref": "#/$defs/Mention"
+                    },
+                    {
+                      "$ref": "#/$defs/Argument"
+                    },
+                    {
+                      "$ref": "#/$defs/Event"
+                    },
+                    {
+                      "$ref": "#/$defs/Relation"
+                    },
+                    {
+                      "$ref": "#/$defs/EntityUpdate"
+                    },
+                    {
+                      "$ref": "#/$defs/Uncertainty"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "required": [
+          "op",
+          "path",
+          "value"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "edits"
+  ],
+  "additionalProperties": false
+}

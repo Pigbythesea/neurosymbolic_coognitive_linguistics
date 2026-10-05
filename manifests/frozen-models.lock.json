@@ -1,0 +1,1004 @@
+{
+  "format_version": 1,
+  "created_utc": "2026-10-04T05:09:23.734806+00:00",
+  "models": [
+    {
+      "id": "qwen35-9b-base",
+      "repo": "Qwen/Qwen3.5-9B-Base",
+      "family": "qwen3.5",
+      "stage": "base",
+      "loader": "qwen3_5",
+      "revision": "68c46c4b3498877f3ef123c856ecfde50c39f404",
+      "config": {
+        "architectures": [
+          "Qwen3_5ForConditionalGeneration"
+        ],
+        "image_token_id": 248056,
+        "model_type": "qwen3_5",
+        "text_config": {
+          "attention_bias": false,
+          "attention_dropout": 0.0,
+          "attn_output_gate": true,
+          "dtype": "bfloat16",
+          "eos_token_id": 248044,
+          "full_attention_interval": 4,
+          "head_dim": 256,
+          "hidden_act": "silu",
+          "hidden_size": 4096,
+          "initializer_range": 0.02,
+          "intermediate_size": 12288,
+          "layer_types": [
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention"
+          ],
+          "linear_conv_kernel_dim": 4,
+          "linear_key_head_dim": 128,
+          "linear_num_key_heads": 16,
+          "linear_num_value_heads": 32,
+          "linear_value_head_dim": 128,
+          "max_position_embeddings": 262144,
+          "mlp_only_layers": [],
+          "model_type": "qwen3_5_text",
+          "mtp_num_hidden_layers": 1,
+          "mtp_use_dedicated_embeddings": false,
+          "num_attention_heads": 16,
+          "num_hidden_layers": 32,
+          "num_key_value_heads": 4,
+          "rms_norm_eps": 1e-06,
+          "use_cache": true,
+          "vocab_size": 248320,
+          "mamba_ssm_dtype": "float32",
+          "rope_parameters": {
+            "mrope_interleaved": true,
+            "mrope_section": [
+              11,
+              11,
+              10
+            ],
+            "rope_type": "default",
+            "rope_theta": 10000000,
+            "partial_rotary_factor": 0.25
+          }
+        },
+        "tie_word_embeddings": false,
+        "transformers_version": "4.57.0.dev0",
+        "video_token_id": 248057,
+        "vision_config": {
+          "deepstack_visual_indexes": [],
+          "depth": 27,
+          "hidden_act": "gelu_pytorch_tanh",
+          "hidden_size": 1152,
+          "in_channels": 3,
+          "initializer_range": 0.02,
+          "intermediate_size": 4304,
+          "model_type": "qwen3_5",
+          "num_heads": 16,
+          "num_position_embeddings": 2304,
+          "out_hidden_size": 4096,
+          "patch_size": 16,
+          "spatial_merge_size": 2,
+          "temporal_patch_size": 2
+        },
+        "vision_end_token_id": 248054,
+        "vision_start_token_id": 248053
+      },
+      "num_hidden_layers": 32,
+      "hidden_size": 4096,
+      "max_position_embeddings": 262144,
+      "files": [
+        {
+          "name": "LICENSE",
+          "bytes": 11343,
+          "sha256": null,
+          "git_blob": "1d5180a42f1c3383ba7c7bd0a50f0837ef0168df"
+        },
+        {
+          "name": "README.md",
+          "bytes": 3705,
+          "sha256": null,
+          "git_blob": "2743bd344b5e00babdac0ef18b5d05a8f75d2130"
+        },
+        {
+          "name": "config.json",
+          "bytes": 3126,
+          "sha256": null,
+          "git_blob": "273ce437e01baf96a07cd9eb3d5f48bac8d7c657"
+        },
+        {
+          "name": "merges.txt",
+          "bytes": 3353259,
+          "sha256": null,
+          "git_blob": "a494e019ca1502219fd0128658b979e5f05ae8e8"
+        },
+        {
+          "name": "model.safetensors-00001-of-00004.safetensors",
+          "bytes": 5276436216,
+          "sha256": "862bf7bba8a50145d19d0ae463931fae515284024736592a73a336bc4dfa54ee",
+          "git_blob": "88deb6b9df49926edaaf2021ab5fcaccad8f3a4c"
+        },
+        {
+          "name": "model.safetensors-00002-of-00004.safetensors",
+          "bytes": 5335161576,
+          "sha256": "bace8e115e11ca93c22f0352a60d2fb0c76ac6d7d1c2993c143b7ad2b6c8868c",
+          "git_blob": "9309319c24157add06593f803abfb80b71bb1b8e"
+        },
+        {
+          "name": "model.safetensors-00003-of-00004.safetensors",
+          "bytes": 5368717376,
+          "sha256": "63a021ac0011cbfc66166e77103327a8b45dee95832e36551f6b4c3337448959",
+          "git_blob": "2618bf7e3608ca0bd5a450a0ec475e84349cdfea"
+        },
+        {
+          "name": "model.safetensors-00004-of-00004.safetensors",
+          "bytes": 3325995704,
+          "sha256": "1a643bbed669266917b5058b5d3f660c03233599249ff7d8fd083decfe662ae0",
+          "git_blob": "1d93da1029e20e05dcbc788d19460e401dddc7db"
+        },
+        {
+          "name": "model.safetensors.index.json",
+          "bytes": 79657,
+          "sha256": null,
+          "git_blob": "b46f5c8684a87aaf30cc7e226584e3de9a7f1d0a"
+        },
+        {
+          "name": "tokenizer.json",
+          "bytes": 12807196,
+          "sha256": "fe000e3ed39ed12b8d2481d527d44f93c65d37e87645d2dcc80d1bf9d50d2927",
+          "git_blob": "468a6a46bcda7cfedbbda773b0176b8284724e6f"
+        },
+        {
+          "name": "tokenizer_config.json",
+          "bytes": 16713,
+          "sha256": null,
+          "git_blob": "ae8d254e44c51d0cb0907bcb221f18efca829d3e"
+        },
+        {
+          "name": "vocab.json",
+          "bytes": 6722759,
+          "sha256": null,
+          "git_blob": "0aa0ce0658d60ac4a5d609f4eadb0e8e43514176"
+        }
+      ]
+    },
+    {
+      "id": "qwen35-9b-post",
+      "repo": "Qwen/Qwen3.5-9B",
+      "family": "qwen3.5",
+      "stage": "posttrained",
+      "loader": "qwen3_5",
+      "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+      "config": {
+        "architectures": [
+          "Qwen3_5ForConditionalGeneration"
+        ],
+        "image_token_id": 248056,
+        "model_type": "qwen3_5",
+        "text_config": {
+          "attention_bias": false,
+          "attention_dropout": 0.0,
+          "attn_output_gate": true,
+          "dtype": "bfloat16",
+          "eos_token_id": 248044,
+          "full_attention_interval": 4,
+          "head_dim": 256,
+          "hidden_act": "silu",
+          "hidden_size": 4096,
+          "initializer_range": 0.02,
+          "intermediate_size": 12288,
+          "layer_types": [
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention"
+          ],
+          "linear_conv_kernel_dim": 4,
+          "linear_key_head_dim": 128,
+          "linear_num_key_heads": 16,
+          "linear_num_value_heads": 32,
+          "linear_value_head_dim": 128,
+          "max_position_embeddings": 262144,
+          "mlp_only_layers": [],
+          "model_type": "qwen3_5_text",
+          "mtp_num_hidden_layers": 1,
+          "mtp_use_dedicated_embeddings": false,
+          "num_attention_heads": 16,
+          "num_hidden_layers": 32,
+          "num_key_value_heads": 4,
+          "rms_norm_eps": 1e-06,
+          "use_cache": true,
+          "vocab_size": 248320,
+          "mamba_ssm_dtype": "float32",
+          "rope_parameters": {
+            "mrope_interleaved": true,
+            "mrope_section": [
+              11,
+              11,
+              10
+            ],
+            "rope_type": "default",
+            "rope_theta": 10000000,
+            "partial_rotary_factor": 0.25
+          }
+        },
+        "tie_word_embeddings": false,
+        "transformers_version": "4.57.0.dev0",
+        "video_token_id": 248057,
+        "vision_config": {
+          "deepstack_visual_indexes": [],
+          "depth": 27,
+          "hidden_act": "gelu_pytorch_tanh",
+          "hidden_size": 1152,
+          "in_channels": 3,
+          "initializer_range": 0.02,
+          "intermediate_size": 4304,
+          "model_type": "qwen3_5",
+          "num_heads": 16,
+          "num_position_embeddings": 2304,
+          "out_hidden_size": 4096,
+          "patch_size": 16,
+          "spatial_merge_size": 2,
+          "temporal_patch_size": 2
+        },
+        "vision_end_token_id": 248054,
+        "vision_start_token_id": 248053
+      },
+      "num_hidden_layers": 32,
+      "hidden_size": 4096,
+      "max_position_embeddings": 262144,
+      "files": [
+        {
+          "name": "LICENSE",
+          "bytes": 11544,
+          "sha256": null,
+          "git_blob": "f938136e3adacfd92be087f6e113b5d6d97f678f"
+        },
+        {
+          "name": "README.md",
+          "bytes": 77643,
+          "sha256": null,
+          "git_blob": "0f3972cb2c995a86bde9ac92440da530fe2b2c68"
+        },
+        {
+          "name": "config.json",
+          "bytes": 3126,
+          "sha256": null,
+          "git_blob": "273ce437e01baf96a07cd9eb3d5f48bac8d7c657"
+        },
+        {
+          "name": "merges.txt",
+          "bytes": 3353259,
+          "sha256": null,
+          "git_blob": "a494e019ca1502219fd0128658b979e5f05ae8e8"
+        },
+        {
+          "name": "model.safetensors-00001-of-00004.safetensors",
+          "bytes": 5276436216,
+          "sha256": "db6f444b43d318c92f360a13a25561a6a65b10c0631b8ed305a426dbaa6c380e",
+          "git_blob": "dfcd6f97b641f0447db5697eca1f4e227c84449c"
+        },
+        {
+          "name": "model.safetensors-00002-of-00004.safetensors",
+          "bytes": 5335161512,
+          "sha256": "31c7d7e2dd5d207840b31cc59083c8f4c4718959149e0358c0364052bb9a0330",
+          "git_blob": "645b45d883adaee57a4dbbf75577fa634d20c6b5"
+        },
+        {
+          "name": "model.safetensors-00003-of-00004.safetensors",
+          "bytes": 5368717440,
+          "sha256": "7ec36ba3a4176a44c3c0876ad80c56a2f70c84bf008d82e9501df642f17dadec",
+          "git_blob": "20f21fdc49bdca8f021badede1ec436d8241f1e2"
+        },
+        {
+          "name": "model.safetensors-00004-of-00004.safetensors",
+          "bytes": 3325995712,
+          "sha256": "b62b0c4cd7e44edee103ee8f4fe225f246d5e768e07bfd5f25b63a8aa1fdd0c6",
+          "git_blob": "5a0f71d358bf91155d46e610dc32db45989a1a5f"
+        },
+        {
+          "name": "model.safetensors.index.json",
+          "bytes": 79657,
+          "sha256": null,
+          "git_blob": "e4c1cb7dba5096b43b9d92bc781aba5e3aa8acd8"
+        },
+        {
+          "name": "tokenizer.json",
+          "bytes": 12807982,
+          "sha256": "5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42",
+          "git_blob": "a73a846725794819aa6e1c9e97d8dc9671c2006d"
+        },
+        {
+          "name": "tokenizer_config.json",
+          "bytes": 16710,
+          "sha256": null,
+          "git_blob": "eda48d3e75a8e59a8479ee4ec8b37f76e711d9c1"
+        },
+        {
+          "name": "vocab.json",
+          "bytes": 6722759,
+          "sha256": null,
+          "git_blob": "0aa0ce0658d60ac4a5d609f4eadb0e8e43514176"
+        }
+      ]
+    },
+    {
+      "id": "olmo3-7b-base",
+      "repo": "allenai/Olmo-3-1025-7B",
+      "family": "olmo3",
+      "stage": "base",
+      "loader": "causal_lm",
+      "revision": "a81bae42db3975be1671e27b9c9a56da1a9f980f",
+      "config": {
+        "architectures": [
+          "Olmo3ForCausalLM"
+        ],
+        "attention_bias": false,
+        "attention_dropout": 0.0,
+        "dtype": "bfloat16",
+        "eos_token_id": 100257,
+        "hidden_act": "silu",
+        "hidden_size": 4096,
+        "initializer_range": 0.02,
+        "intermediate_size": 11008,
+        "layer_types": [
+          "sliding_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "full_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "full_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "full_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "full_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "full_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "full_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "full_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "full_attention"
+        ],
+        "max_position_embeddings": 65536,
+        "model_type": "olmo3",
+        "num_attention_heads": 32,
+        "num_hidden_layers": 32,
+        "num_key_value_heads": 32,
+        "pad_token_id": 100277,
+        "rms_norm_eps": 1e-06,
+        "rope_scaling": {
+          "attention_factor": 1.2079441541679836,
+          "beta_fast": 32,
+          "beta_slow": 1,
+          "factor": 8.0,
+          "original_max_position_embeddings": 8192,
+          "rope_type": "yarn"
+        },
+        "rope_theta": 500000,
+        "sliding_window": 4096,
+        "tie_word_embeddings": false,
+        "transformers_version": "4.57.0",
+        "use_cache": true,
+        "vocab_size": 100278
+      },
+      "num_hidden_layers": 32,
+      "hidden_size": 4096,
+      "max_position_embeddings": 65536,
+      "files": [
+        {
+          "name": "README.md",
+          "bytes": 12222,
+          "sha256": null,
+          "git_blob": "15fe2e8b8b0fbf49416d3943ca6cf0174d0f2c07"
+        },
+        {
+          "name": "config.json",
+          "bytes": 1620,
+          "sha256": null,
+          "git_blob": "5e1778fbc278e8f47217ba485e9a075689207f0f"
+        },
+        {
+          "name": "generation_config.json",
+          "bytes": 69,
+          "sha256": null,
+          "git_blob": "33b71a9c3ddf78cfa1c6721826775ae02d06d64d"
+        },
+        {
+          "name": "merges.txt",
+          "bytes": 916646,
+          "sha256": null,
+          "git_blob": "354558edcdbd64ca7abd407b8be3d5d09d39d781"
+        },
+        {
+          "name": "model-00001-of-00003.safetensors",
+          "bytes": 4969984976,
+          "sha256": "0490d6668e613a29b23367e3a7aa9cc6aced3d162694445bb969ed7622b3c4e2",
+          "git_blob": "a04aa765e30d6c14c059c0d511ffc68bd807c8a0"
+        },
+        {
+          "name": "model-00002-of-00003.safetensors",
+          "bytes": 4981161496,
+          "sha256": "e127ea479fb6e208fe9d48d23b11212b5722f4873f6eef9c009b7a855866c641",
+          "git_blob": "f17156e68ed4a2366ec7decc8b5394c251b1d6f0"
+        },
+        {
+          "name": "model-00003-of-00003.safetensors",
+          "bytes": 4644917240,
+          "sha256": "f3ddff10052ffe5de5c6b4cad45c422c0d898acc6beb21b1b8531244adfb3c70",
+          "git_blob": "4254e20e90dbc3154b93a8098bf0a2530dc62cfa"
+        },
+        {
+          "name": "model.safetensors.index.json",
+          "bytes": 29630,
+          "sha256": null,
+          "git_blob": "421a80b181a130ccbc579a328fb349d8792a32ce"
+        },
+        {
+          "name": "special_tokens_map.json",
+          "bytes": 207,
+          "sha256": null,
+          "git_blob": "48f174b441a37b588e40d794c437adad1624a311"
+        },
+        {
+          "name": "tokenizer.json",
+          "bytes": 7137177,
+          "sha256": null,
+          "git_blob": "5fe172127988c3709a49d8d2ce20e11bb266cd57"
+        },
+        {
+          "name": "tokenizer_config.json",
+          "bytes": 4308,
+          "sha256": null,
+          "git_blob": "5599723dac37d9f0b7e496de66d15e0a762babe9"
+        },
+        {
+          "name": "vocab.json",
+          "bytes": 1611056,
+          "sha256": null,
+          "git_blob": "51135344eec01a62fc4deaca39c72ac08f5b9709"
+        }
+      ]
+    },
+    {
+      "id": "olmo3-7b-instruct",
+      "repo": "allenai/Olmo-3-7B-Instruct",
+      "family": "olmo3",
+      "stage": "instruct",
+      "loader": "causal_lm",
+      "revision": "6e5971d9eba42665f5bd5a0fcf047f299ce1dccc",
+      "config": {
+        "architectures": [
+          "Olmo3ForCausalLM"
+        ],
+        "attention_bias": false,
+        "attention_dropout": 0.0,
+        "dtype": "bfloat16",
+        "eos_token_id": 100257,
+        "hidden_act": "silu",
+        "hidden_size": 4096,
+        "initializer_range": 0.02,
+        "intermediate_size": 11008,
+        "layer_types": [
+          "sliding_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "full_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "full_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "full_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "full_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "full_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "full_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "full_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "full_attention"
+        ],
+        "max_position_embeddings": 65536,
+        "model_type": "olmo3",
+        "num_attention_heads": 32,
+        "num_hidden_layers": 32,
+        "num_key_value_heads": 32,
+        "pad_token_id": 100277,
+        "rms_norm_eps": 1e-06,
+        "rope_scaling": {
+          "attention_factor": 1.2079441541679836,
+          "beta_fast": 32.0,
+          "beta_slow": 1.0,
+          "factor": 8.0,
+          "original_max_position_embeddings": 8192,
+          "rope_type": "yarn"
+        },
+        "rope_theta": 500000,
+        "sliding_window": 4096,
+        "tie_word_embeddings": false,
+        "transformers_version": "4.57.1",
+        "use_cache": false,
+        "vocab_size": 100278
+      },
+      "num_hidden_layers": 32,
+      "hidden_size": 4096,
+      "max_position_embeddings": 65536,
+      "files": [
+        {
+          "name": "README.md",
+          "bytes": 12466,
+          "sha256": null,
+          "git_blob": "53f9006ad6a575eba8a44115ce9cd73b4149c5eb"
+        },
+        {
+          "name": "config.json",
+          "bytes": 1625,
+          "sha256": null,
+          "git_blob": "9c118c14e7871ec96335dc859995b4ef554bb097"
+        },
+        {
+          "name": "generation_config.json",
+          "bytes": 204,
+          "sha256": null,
+          "git_blob": "0739fd213b7634f1c4b2273bec0d4eb87a552de2"
+        },
+        {
+          "name": "merges.txt",
+          "bytes": 916646,
+          "sha256": null,
+          "git_blob": "354558edcdbd64ca7abd407b8be3d5d09d39d781"
+        },
+        {
+          "name": "model-00001-of-00003.safetensors",
+          "bytes": 4969984976,
+          "sha256": "e7bd4c8ba52177a815aee5929cb458a116a65799688d3e51402500a1cb77023c",
+          "git_blob": "29108dfe5e76a9caaab53791e05a13905fc4b5da"
+        },
+        {
+          "name": "model-00002-of-00003.safetensors",
+          "bytes": 4981161496,
+          "sha256": "ea92aa0499a2ca02400e5d87324009e172bdbfb9809f2ac501485d8224382328",
+          "git_blob": "b063de17072bc8c0c834df819db062b1dad78fa6"
+        },
+        {
+          "name": "model-00003-of-00003.safetensors",
+          "bytes": 4644917240,
+          "sha256": "d50f95e4f2ec5fc4fbce6217cbf54fd1d700928b05e5550c8ee08bf4ba948925",
+          "git_blob": "8ece41afac09fc9c729d24add4bb19783069d287"
+        },
+        {
+          "name": "model.safetensors.index.json",
+          "bytes": 29630,
+          "sha256": null,
+          "git_blob": "421a80b181a130ccbc579a328fb349d8792a32ce"
+        },
+        {
+          "name": "special_tokens_map.json",
+          "bytes": 581,
+          "sha256": null,
+          "git_blob": "9d133a8f4995ff315a8a3e68dbba03409d214a8e"
+        },
+        {
+          "name": "tokenizer.json",
+          "bytes": 7137175,
+          "sha256": null,
+          "git_blob": "54b3f7c465454c7878d6e955e44064d23c5a4052"
+        },
+        {
+          "name": "tokenizer_config.json",
+          "bytes": 4318,
+          "sha256": null,
+          "git_blob": "277b816675b12d22c3ca0e2b4af1b9dc88e30043"
+        },
+        {
+          "name": "vocab.json",
+          "bytes": 1611055,
+          "sha256": null,
+          "git_blob": "9c2954b1c94c5267dc84a5d0214efbc79ff8c3bd"
+        }
+      ]
+    },
+    {
+      "id": "qwen38-27b",
+      "repo": "Qwen/Qwen3.8-27B",
+      "family": "qwen3.8",
+      "stage": "posttrained",
+      "loader": "qwen3_5",
+      "revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+      "config": {
+        "architectures": [
+          "Qwen3_5ForConditionalGeneration"
+        ],
+        "image_token_id": 248056,
+        "language_model_only": false,
+        "model_type": "qwen3_5",
+        "text_config": {
+          "attention_bias": false,
+          "attention_dropout": 0.0,
+          "attn_output_gate": true,
+          "bos_token_id": 248044,
+          "dtype": "bfloat16",
+          "eos_token_id": 248044,
+          "full_attention_interval": 4,
+          "head_dim": 256,
+          "hidden_act": "silu",
+          "hidden_size": 5120,
+          "initializer_range": 0.02,
+          "intermediate_size": 17408,
+          "layer_types": [
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention"
+          ],
+          "linear_conv_kernel_dim": 4,
+          "linear_key_head_dim": 128,
+          "linear_num_key_heads": 16,
+          "linear_num_value_heads": 48,
+          "linear_value_head_dim": 128,
+          "mamba_ssm_dtype": "float32",
+          "max_position_embeddings": 262144,
+          "model_type": "qwen3_5_text",
+          "mtp_num_hidden_layers": 1,
+          "mtp_use_dedicated_embeddings": false,
+          "num_attention_heads": 24,
+          "num_hidden_layers": 64,
+          "num_key_value_heads": 4,
+          "output_gate_type": "swish",
+          "pad_token_id": null,
+          "partial_rotary_factor": 0.25,
+          "rms_norm_eps": 1e-06,
+          "rope_parameters": {
+            "mrope_interleaved": true,
+            "mrope_section": [
+              11,
+              11,
+              10
+            ],
+            "partial_rotary_factor": 0.25,
+            "rope_theta": 10000000,
+            "rope_type": "default"
+          },
+          "tie_word_embeddings": false,
+          "use_cache": true,
+          "vocab_size": 248320
+        },
+        "tie_word_embeddings": false,
+        "transformers_version": "5.8.0.dev0",
+        "video_token_id": 248057,
+        "vision_config": {
+          "deepstack_visual_indexes": [],
+          "depth": 27,
+          "hidden_act": "gelu_pytorch_tanh",
+          "hidden_size": 1152,
+          "in_channels": 3,
+          "initializer_range": 0.02,
+          "intermediate_size": 4304,
+          "model_type": "qwen3_5",
+          "num_heads": 16,
+          "num_position_embeddings": 2304,
+          "out_hidden_size": 5120,
+          "patch_size": 16,
+          "spatial_merge_size": 2,
+          "temporal_patch_size": 2
+        },
+        "vision_end_token_id": 248054,
+        "vision_start_token_id": 248053
+      },
+      "num_hidden_layers": 64,
+      "hidden_size": 5120,
+      "max_position_embeddings": 262144,
+      "files": [
+        {
+          "name": "LICENSE",
+          "bytes": 11544,
+          "sha256": null,
+          "git_blob": "f938136e3adacfd92be087f6e113b5d6d97f678f"
+        },
+        {
+          "name": "README.md",
+          "bytes": 65012,
+          "sha256": null,
+          "git_blob": "bc8aa0e396cd029c21cd773cca21830d0ded28ec"
+        },
+        {
+          "name": "config.json",
+          "bytes": 4312,
+          "sha256": null,
+          "git_blob": "706cebd746c4b6f2b1d1f892630867acfdfd3df8"
+        },
+        {
+          "name": "generation_config.json",
+          "bytes": 202,
+          "sha256": null,
+          "git_blob": "023756cfadf88e5bf69eefeee3e172f38c448d64"
+        },
+        {
+          "name": "merges.txt",
+          "bytes": 3353259,
+          "sha256": null,
+          "git_blob": "a494e019ca1502219fd0128658b979e5f05ae8e8"
+        },
+        {
+          "name": "model-00001-of-00018.safetensors",
+          "bytes": 3966730552,
+          "sha256": "ba0ce20aae489ad196733da5064bcdf159a1fe84f53336648196e1ebb7751b1c",
+          "git_blob": "79b73cdd69afeca931d181f5d1e21ad2d73bb7b7"
+        },
+        {
+          "name": "model-00002-of-00018.safetensors",
+          "bytes": 3043080328,
+          "sha256": "06a148c01bfbe3faa14a5f184a7ff29a706f7ae1c8b2705d2058e26d17a001fb",
+          "git_blob": "81cf43545884a227a01351942dfbc72577812316"
+        },
+        {
+          "name": "model-00003-of-00018.safetensors",
+          "bytes": 2542796952,
+          "sha256": "2e1bf62cbcd406eaa64b60d10353e1f0ef4039d0976e56f05cabe953454f9968",
+          "git_blob": "a2da5e6cd6307a6cae13d04820ab0d31b47b48bd"
+        },
+        {
+          "name": "model-00004-of-00018.safetensors",
+          "bytes": 3988973152,
+          "sha256": "511e34063187882659753c4d93f3859f93c019fd438d8813071921c81d9a3f1a",
+          "git_blob": "175ddab3f2488ad181f73d789d2d778cf6d4fca6"
+        },
+        {
+          "name": "model-00005-of-00018.safetensors",
+          "bytes": 2099339864,
+          "sha256": "635cb53446dc74f219740fc59e18b774f877b803b9722e289ca62575a6efa701",
+          "git_blob": "64890208fdd563c3aac0c2f55f69948bcaa1a492"
+        },
+        {
+          "name": "model-00006-of-00018.safetensors",
+          "bytes": 3979553696,
+          "sha256": "0bc5214fac607f0e6cc92eec3789d4b8559410ef9fce66621ba8158e8410dae0",
+          "git_blob": "3ae29b86e4c773babfe17124dbd10d54d37819ec"
+        },
+        {
+          "name": "model-00007-of-00018.safetensors",
+          "bytes": 2108759344,
+          "sha256": "80b0c49033e9a0d5762562aa12f4acdb7f54da586f3d0110f28c48d91cf07892",
+          "git_blob": "b7e9c0f038884839f3dad38fef7e75ee3362c24f"
+        },
+        {
+          "name": "model-00008-of-00018.safetensors",
+          "bytes": 3979553696,
+          "sha256": "7192c5b66185d3592927daabee1cc19e6f6e0ce75988ee20e824b624765fda79",
+          "git_blob": "0b58cbc52714e1c683711be87e7c2e33fb10e7a0"
+        },
+        {
+          "name": "model-00009-of-00018.safetensors",
+          "bytes": 2108759344,
+          "sha256": "af3c48cc37af44f3db6ae0579baf019180d48d9c527caa0a1f03ff85813a56d8",
+          "git_blob": "4fc0c6b28004d809225d0e115f30e9e11c2345dc"
+        },
+        {
+          "name": "model-00010-of-00018.safetensors",
+          "bytes": 3979553696,
+          "sha256": "163490a76f3bea3a40855b7efc04ce6d27afaf1a34f0bbde495b9491f76457c9",
+          "git_blob": "9ec693a17c788084116c51b4f34632670df77612"
+        },
+        {
+          "name": "model-00011-of-00018.safetensors",
+          "bytes": 2108759344,
+          "sha256": "5f3ae1b948aeee39da77aec558e8236cd65fe4d7cb7686a76bb007acc563c6d8",
+          "git_blob": "3c63baaed16d833432a919647af53ac76bb6b007"
+        },
+        {
+          "name": "model-00012-of-00018.safetensors",
+          "bytes": 3979553696,
+          "sha256": "a3de1c7114677a8f5ac5c4892c90e8238ea5c1e2038c80e757dfc87c3902ca55",
+          "git_blob": "8568b440a4666ed1b4cda0b5d21496378304f326"
+        },
+        {
+          "name": "model-00013-of-00018.safetensors",
+          "bytes": 2108759344,
+          "sha256": "06ab79a41f74c9c5cb734816feb0c7fc364104b227165ee7391231e1155aa02a",
+          "git_blob": "724083995a2257194321a3d00b36fd7d4bb7348d"
+        },
+        {
+          "name": "model-00014-of-00018.safetensors",
+          "bytes": 3979553696,
+          "sha256": "4138ed94603065ba884bbcadedb04d7718bb40117e85e6f5c6fc5b9c05b7a85b",
+          "git_blob": "a60b80b6510d7938d951fbddc76aaadd121c6268"
+        },
+        {
+          "name": "model-00015-of-00018.safetensors",
+          "bytes": 2108759344,
+          "sha256": "69224e27b9de4e7dbf6fc936c6eaae08447bda3b80a6c31a871ab451173afd22",
+          "git_blob": "7d4c34f3d716e1a47acff2f576b65b41a3ec4f3f"
+        },
+        {
+          "name": "model-00016-of-00018.safetensors",
+          "bytes": 3979564040,
+          "sha256": "73cb9a1089fb6155cb648609478d6633be8a5c7d9ca5a05bc8925ce8a553cefe",
+          "git_blob": "c67e3e42c9715298fa7f68c6b378bfb1d74290d0"
+        },
+        {
+          "name": "model-00017-of-00018.safetensors",
+          "bytes": 2108759344,
+          "sha256": "beb51f01056142ac4984bd800507b0dd0fd18de57f8e9ef6ea41d1a3598983a8",
+          "git_blob": "23dd899179729a4370c655e2c2241cfdbe4ef4ba"
+        },
+        {
+          "name": "model-00018-of-00018.safetensors",
+          "bytes": 3392197344,
+          "sha256": "1d3479509e21494658f9b64d317f5ea8e55c4025d28c702d6c4d0b356ce8ea06",
+          "git_blob": "a92b4073fc6a58ffc9334ac63360fc8d9cc50d33"
+        },
+        {
+          "name": "model.safetensors.index.json",
+          "bytes": 112216,
+          "sha256": null,
+          "git_blob": "da35e3c564457dface7d138f0b6cac284ff8958c"
+        },
+        {
+          "name": "tokenizer.json",
+          "bytes": 12809320,
+          "sha256": "0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3",
+          "git_blob": "9328ce9c41e80f6dd7bc2c66d8ae1fc93bf87440"
+        },
+        {
+          "name": "tokenizer_config.json",
+          "bytes": 17928,
+          "sha256": null,
+          "git_blob": "5de744b3fca2129d7186979ae47c06be33903243"
+        },
+        {
+          "name": "vocab.json",
+          "bytes": 6722759,
+          "sha256": null,
+          "git_blob": "0aa0ce0658d60ac4a5d609f4eadb0e8e43514176"
+        }
+      ]
+    }
+  ],
+  "content_hash": "1ae84a6764800265c8788f97a9352e9459151c405a80c51b1e0006c69369e977"
+}

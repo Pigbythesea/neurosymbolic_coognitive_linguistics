@@ -1,0 +1,4 @@
+-r extraction-metadata.txt
+# Install the CUDA 12.8 torch wheel first using the official PyTorch index.
+torch==2.10.0
+accelerate==1.12.0

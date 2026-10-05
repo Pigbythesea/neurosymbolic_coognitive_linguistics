@@ -1,0 +1,14 @@
+{
+  "format_version": 1,
+  "corpus": "data/processed/corpus",
+  "annotations": "data/annotations/deniz-luna-v5",
+  "annotation_pass": "primary",
+  "alignment": "data/processed/alignment",
+  "output": "data/processed/semantics-v5",
+  "candidate_seed": 1729,
+  "feature_reduction": "sum",
+  "normalization": "preserve_annotation_labels_and_senses",
+  "availability": "annotation_unit_endpoint",
+  "query_label_policy": "annotation_supported_answers_no_closed_world_negatives",
+  "notes": "Deterministic, read-only consumption of saved annotations. No LLM calls. Incomplete coverage and semantic review are reported separately from compilation success."
+}

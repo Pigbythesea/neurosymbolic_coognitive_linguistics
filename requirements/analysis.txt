@@ -1,0 +1,9 @@
+# Install the appropriate torch wheel first. Windows setup_analysis.cmd uses
+# the official CPU index; cluster execution will use its CUDA environment.
+# These match existing project pins where dependencies are shared.
+numpy==2.3.3
+h5py==3.14.0
+pydantic==2.12.3
+scipy==1.16.3
+nibabel==5.3.2
+torch==2.10.0

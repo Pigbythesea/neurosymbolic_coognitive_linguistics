@@ -1,0 +1,101 @@
+Represent the meaning expressed in CURRENT_PASSAGE as a semantic graph. Read it
+in the context of PRECEDING_TEXT. Return the supplied JSON structure.
+
+WHAT TO REPRESENT
+Identify the participants, events and states; connect each event to its
+participants by meaning. Include supported attribution, negation, identity,
+properties and relationships between events. Predicates are short concept labels.
+Agent means an actor; experiencer means someone experiencing a feeling or state.
+Theme/content can be an entity, another event, or a literal value. A grammatical
+subject need not be an agent. Use an optional frame role or sense only if known.
+
+Group current referring expressions by what they refer to. Describe each group
+in your own local record. Then decide whether it refers to an existing entity:
+set existing to that entity's reference-index key, or null for a new/unresolved
+referent. Source text takes precedence over prior descriptions. The index is an
+aid to continuity, not an instruction to preserve an earlier mistake. If an old
+interpretation conflicts with the text, retain the supported local interpretation
+and explain the reference uncertainty. Code records your local description and
+historical link separately; selecting existing reuses that entity's identity.
+
+Represent reported, believed, desired, hypothetical and other qualified content
+using contexts. A context identifies its kind, holder (when known), attribution
+event and any surrounding contexts. Events and other claims point to the contexts
+they belong to. An empty context list means the narrator's unqualified assertion.
+Negation of an event uses its polarity; use a negated context for wider scope.
+Reported or desired content does not assert that the described event happened.
+
+Record a new identity revelation as an identity_link with its current evidence
+and scope. Record asserted/retracted properties as entity_updates. Discourse
+relations need support in the text: narrative order alone is not a before/after
+or causal relation. Names, numbers and quoted values can be literals. An update
+value is either the actual text value or {"literal":"key"} referring to a literal
+record. A bare string is always the actual value, never a reference.
+
+SOURCE AND OUTPUT
+Use short unique local keys to connect records in this response. The reference
+index supplies keys for earlier entities, mentions, events, contexts and literals.
+New events have triggers in the current passage; an earlier event is referenced
+by its existing key. Arguments can point to local or existing keys, including
+events later in this response. Prefer a mention key for a participant expressed
+in the current passage. Code assigns permanent IDs, offsets and antecedent pointers.
+
+For a span, trigger or evidence, copy the relevant expression as a plain string.
+Punctuation and transcript markers such as {BR} are handled by code. For repeated
+expressions you can use {"quote":"expression","within":"surrounding source text"}.
+If code supplies source_id choices in a correction request, select from those
+choices. You do not calculate positions or occurrence numbers.
+
+Mention spans and new event triggers come from the current passage. Evidence for
+a new assertion can include preceding context but must reach the current passage.
+For an event, evidence is the source passage supporting it and containing its
+trigger; use null when the trigger itself suffices. Code locates these expressions.
+Mark uncertainty when the available text leaves a semantic decision unresolved.
+Empty arrays are appropriate for categories not expressed. Annotate supported
+content without filling unused categories or expanding unexpressed implications.
+
+WORKED EXAMPLES
+These examples demonstrate the output format using opening passages of training
+stories. Their source facts apply only to their own passages. Each example starts
+with an empty reference index. The actual annotation input follows the examples.
+
+EXAMPLE_JSON
+{"story_id":"story_07","current_passage":"I grew up in a really small town in Alabama.","output":{
+"referents":[
+ {"key":"n0","description":{"label":"narrator","concept":"person","kind":"person"},"existing":null,"mentions":[{"key":"m0","span":"I","form":"pronoun","reference_status":"explicit"}]},
+ {"key":"n1","description":{"label":"small town","concept":"town","kind":"location"},"existing":null,"mentions":[{"key":"m1","span":"a really small town","form":"description","reference_status":"explicit"}]},
+ {"key":"n2","description":{"label":"Alabama","concept":"state","kind":"location"},"existing":null,"mentions":[{"key":"m2","span":"Alabama","form":"name","reference_status":"explicit"}]}],
+"literals":[],"contexts":[],
+"events":[
+ {"key":"e0","predicate":"grow_up","sense_id":null,"trigger":"grew up","evidence":null,"arguments":[{"role":"theme","frame_role":null,"target":"m0"},{"role":"location","frame_role":null,"target":"m1"}],"polarity":"positive","tense":"past","contexts":[]},
+ {"key":"e1","predicate":"located_in","sense_id":null,"trigger":"in Alabama","evidence":null,"arguments":[{"role":"theme","frame_role":null,"target":"m1"},{"role":"location","frame_role":null,"target":"m2"}],"polarity":"positive","tense":"unspecified","contexts":[]}],
+"relations":[],"identity_links":[],
+"entity_updates":[{"entity":"n1","attribute":"size","value":"really small","operation":"assert","evidence":"a really small town","status":"explicit","contexts":[]}],
+"uncertainties":[]}}
+END_EXAMPLE
+
+EXAMPLE_JSON
+{"story_id":"story_02","current_passage":"Tom Waits loved the novel JT Leroy had written called Sarah.","output":{
+"referents":[
+ {"key":"n0","description":{"label":"Tom Waits","concept":"person","kind":"person"},"existing":null,"mentions":[{"key":"m0","span":"Tom Waits","form":"name","reference_status":"explicit"}]},
+ {"key":"n1","description":{"label":"novel named Sarah","concept":"novel","kind":"object"},"existing":null,"mentions":[{"key":"m1","span":"the novel","form":"description","reference_status":"explicit"},{"key":"m2","span":"Sarah","form":"name","reference_status":"explicit"}]},
+ {"key":"n2","description":{"label":"JT Leroy","concept":"person","kind":"person"},"existing":null,"mentions":[{"key":"m3","span":"JT Leroy","form":"name","reference_status":"explicit"}]}],
+"literals":[{"key":"v0","kind":"name","value":"Sarah","unit":null,"evidence":"Sarah"}],"contexts":[],
+"events":[
+ {"key":"e0","predicate":"love","sense_id":null,"trigger":"loved","evidence":null,"arguments":[{"role":"experiencer","frame_role":null,"target":"m0"},{"role":"stimulus","frame_role":null,"target":"m1"}],"polarity":"positive","tense":"past","contexts":[]},
+ {"key":"e1","predicate":"write","sense_id":null,"trigger":"written","evidence":null,"arguments":[{"role":"agent","frame_role":null,"target":"m3"},{"role":"theme","frame_role":null,"target":"m1"}],"polarity":"positive","tense":"past","contexts":[]}],
+"relations":[],"identity_links":[],
+"entity_updates":[{"entity":"n1","attribute":"name","value":{"literal":"v0"},"operation":"assert","evidence":"called Sarah","status":"explicit","contexts":[]}],
+"uncertainties":[]}}
+END_EXAMPLE
+
+EXAMPLE_JSON
+{"story_id":"story_10","current_passage":"In all honesty I'm gonna start out by admitting I sometimes lie.","output":{
+"referents":[{"key":"n0","description":{"label":"narrator","concept":"person","kind":"person"},"existing":null,"mentions":[{"key":"m0","span":"I'm","form":"pronoun","reference_status":"explicit"},{"key":"m1","span":"I","form":"pronoun","reference_status":"explicit"}]}],
+"literals":[],
+"contexts":[{"key":"c0","kind":"reported","holder":"n0","attribution_event":"e0","parents":[],"evidence":"admitting I sometimes lie"}],
+"events":[
+ {"key":"e0","predicate":"admit","sense_id":null,"trigger":"admitting","evidence":null,"arguments":[{"role":"agent","frame_role":null,"target":"m0"},{"role":"content","frame_role":null,"target":"e1"}],"polarity":"positive","tense":"future","contexts":[]},
+ {"key":"e1","predicate":"lie","sense_id":null,"trigger":"lie","evidence":null,"arguments":[{"role":"agent","frame_role":null,"target":"m1"}],"polarity":"positive","tense":"present","contexts":["c0"]}],
+"relations":[],"identity_links":[],"entity_updates":[],"uncertainties":[]}}
+END_EXAMPLE
