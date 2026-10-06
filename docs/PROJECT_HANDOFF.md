@@ -15,6 +15,15 @@ The active downstream contract is [reviewed_downstream.md](reviewed_downstream.m
 Cluster verification is paused; local compilation and real-corpus verification
 precede researcher-operated cluster execution. The full scientific scope remains.
 
+**Encoding support refinement, 2026-10-05:** Following the researcher's review,
+the universal all-feature mask is replaced as the default by explicit
+comparison-specific support. All competing conditions still share the same rows
+in every training/validation/test partition. The former all-group mask remains
+an explicit robustness policy. No accepted annotations, compiled feature values,
+prefix timing rules or final holdout are changed. See
+[encoding_support.md](encoding_support.md) and the full-corpus receipt
+`artifacts/encoding-support-verification.json` for implementation and coverage.
+
 ## 1. Source authority and how to use this record
 
 The researcher originally supplied two proposals and a longer discussion that generated the plan:

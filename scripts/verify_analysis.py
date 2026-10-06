@@ -24,6 +24,7 @@ from neurosym.analysis_runs import decoder_metrics, write_report
 from neurosym.decoders import SemanticDecoder, acceptable_loss, detached_trace, query_vocabulary
 from neurosym.decoder_fit import evaluate, mismatch_map, write_trace
 from neurosym.encoding import EncodingFeatures, GroupRidge
+from neurosym.encoding_support import EncodingSupport, comparison_spec
 from neurosym.geometry import cosine_rdm, rdm_comparison, trace_signature
 from neurosym.io import object_hash
 from neurosym.io import read_json
@@ -177,7 +178,8 @@ def verify(build):
             raise AssertionError("Shared public candidate storage was mutable")
         if object_hash(candidates) != before:
             raise AssertionError("Candidate descriptor changed during execution")
-    factory = EncodingFeatures(data, ["story_01"], ["presentation", "C"])
+    support = EncodingSupport(data, comparison_spec(data.config, {"comparison": "concepts", "groups": ["presentation", "C"]}))
+    factory = EncodingFeatures(data, ["story_01"], ["presentation", "C"], support=support)
     design, mask = factory.story("story_01")
     if len(mask) != data.reader.contract["subjects"]["subject01"]["story_01"]["timepoints"] - 20 or not mask.any():
         raise AssertionError("Actual response/feature timing contract failed.")
@@ -193,11 +195,12 @@ def verify(build):
             raise AssertionError("Native voxel/parcel assignment shape mismatch.")
         spatial[subject] = {"assigned": int((assignment >= 0).sum()), "total": len(assignment),
                             "observed_parcels": len(np.unique(assignment[assignment >= 0]))}
-    for relative in ["analysis_data.py", "analysis_runs.py", "decoders.py", "decoder_fit.py", "encoding.py", "geometry.py", "spatial.py"]:
+    for relative in ["analysis_data.py", "analysis_runs.py", "decoders.py", "decoder_fit.py", "encoding.py", "encoding_support.py", "geometry.py", "spatial.py"]:
         ast.parse((ROOT / "neurosym" / relative).read_text(encoding="utf-8"), feature_version=(3, 11))
     from package_analysis import MODULES
-    verified_files = [f"neurosym/{name}.py" for name in MODULES] + ["scripts/run_analysis.py", "scripts/verify_analysis.py"]
+    verified_files = [f"neurosym/{name}.py" for name in MODULES] + ["scripts/run_analysis.py", "scripts/verify_analysis.py", "scripts/verify_encoding_support.py"]
     return {"status": "verified", "semantic_build_hash": data.semantics.build_hash,
+            "config_hash": object_hash(data.config),
             "verified_code_sha256": {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in verified_files},
             "annotation_protocols": sorted({s["annotation_protocol"] for s in sources.values()}),
             "partial_annotations": data.partial, "real_query_execution": coverage,

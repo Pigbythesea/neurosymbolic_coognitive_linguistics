@@ -104,7 +104,14 @@ is offline delayed measurement, not exact online concept localization.
 vocabularies yield C/B/BR/R/S/D/U groups; L is optional. Presentation controls
 contain released word/letter counts, letter identity, word-length variation and
 pauses. Contemporary model states and optional released legacy semantics are
-separate groups. Within-story FIR designs share annotation/timing support masks.
+separate groups. Within-story FIR designs use explicitly declared comparison
+support. Baseline and augmented conditions share training, validation and test
+rows for the union of their required groups; unrelated uncertainties no longer
+exclude rows. `--comparison` selects a named union, or `--mask-groups` declares a
+custom union. `--mask-policy all-groups` retains the earlier global intersection
+as a robustness condition. Frozen-state contrasts additionally declare identical
+`--mask-model` lists on every condition, including baselines. See
+[encoding_support.md](encoding_support.md) for definitions and coverage reporting.
 
 Training-only standardization and feature-count normalization balance group
 variance. Inner folds select the shared ridge penalty and positive kernel mixture
@@ -121,6 +128,11 @@ that is saved as reliability, not silently converted into a universal noise ceil
 Use matched ablation runs to compare presentation+C with structural groups added,
 and model with model+semantic groups, retaining presentation controls. Correlated
 feature-group contributions remain model-dependent, not unique causal effects.
+
+`support.json` records exact row identities and exclusion reasons for all stories
+used by a run. `compare-encoding` verifies matched support, participant and nested
+partitions before reporting paired descriptive effects. Encoding-implied geometry
+inherits the parent support; it does not fill excluded predictions.
 
 ## Decoding and anatomical grounding without grounding labels
 

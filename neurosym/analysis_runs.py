@@ -69,7 +69,7 @@ def composition_partition(dataset, split, keys):
 
 def run_directory(data, kind, options):
     modules = ["analysis_runs.py", "analysis_data.py", "decoders.py", "decoder_fit.py",
-               "encoding.py", "geometry.py", "spatial.py", "semantic_features.py",
+               "encoding.py", "encoding_support.py", "geometry.py", "spatial.py", "semantic_features.py",
                "semantic_queries.py", "dataset.py", "model_features.py", "temporal.py", "reviewed_queries.py",
                "reviewed_graph.py", "reviewed_archive.py", "reviewed_compile.py"]
     identity = {"format_version": 1, "kind": kind, "options": options,
@@ -81,6 +81,9 @@ def run_directory(data, kind, options):
                          for name in modules}}
     if options.get("model"):
         identity["model_alignment"] = data.model(options["model"]).aligned_run
+    if options.get("comparison_support"):
+        identity["comparison_model_alignments"] = {
+            m["model"]: data.model(m["model"]).aligned_run for m in options["comparison_support"]["models"]}
     directory = data.root / data.config["output"] / kind / object_hash(identity)
     immutable_json(directory / "identity.json", identity)
     return directory, identity

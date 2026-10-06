@@ -7,9 +7,10 @@ from scipy import linalg
 
 from .analysis_runs import column_correlation, partition, run_directory, write_report
 from .extraction import exclusive_run
+from .encoding_support import EncodingSupport, assert_matched_support, comparison_spec, validate_condition
 from .io import read_json, save_json
 from .semantic_features import SemanticVectorizer
-from .temporal import checked_alignment, fir_design
+from .temporal import fir_design
 
 
 class GroupScaler:
@@ -73,13 +74,12 @@ class GroupRidge:
 
 
 class EncodingFeatures:
-    def __init__(self, data, train, groups, *, model=None, layer=None):
+    def __init__(self, data, train, groups, *, support, model=None, layer=None):
         data.validate_partition(train)
-        if len(set(groups)) != len(groups) or not groups:
-            raise ValueError("Choose a nonempty unique encoding group list.")
-        legal = {"presentation", "legacy", "model", "C", "B", "BR", "GB", "GBR", "PB", "PBR", "R", "S", "D", "U", "L"}
-        if set(groups) - legal or ("model" in groups and (model is None or layer is None)):
-            raise ValueError("Unknown encoding group or unspecified model layer.")
+        validate_condition(support.spec, groups, model, layer)
+        if support.data is not data:
+            raise ValueError("Encoding support belongs to another dataset.")
+        self.support = support
         self.data, self.groups, self.train = data, list(groups), list(train)
         self.model, self.layer = model, layer
         self.vectorizers = {g: SemanticVectorizer.fit(data.semantics, train, groups=[g])
@@ -90,17 +90,8 @@ class EncodingFeatures:
         data = self.data
         timing = read_json(data.semantics.build / "stories" / story / "timing.json")
         rows, delays = timing["response_raw_indices"], timing["fir_delays_trs"]
-        # The common mask remains identical across semantic/model ablations.
-        known = np.asarray(timing.get("comparison_known_raw_rows", timing["known_raw_rows"]), dtype=bool)
-        valid = np.ones(len(rows), dtype=bool)
-        for delay in delays:
-            indices = np.asarray(rows) - delay
-            valid &= (indices >= 0) & known[np.maximum(indices, 0)]
-        alignment = checked_alignment(data.root / "data/processed/alignment", story, data.index["content_hash"])
-        word_known = np.asarray(alignment["words"]["known_raw_rows"], dtype=bool)
-        for delay in delays:
-            indices = np.asarray(rows) - delay
-            valid &= (indices >= 0) & word_known[np.maximum(indices, 0)]
+        # All conditions and every inner/outer fold use the declared contrast support.
+        valid = self.support.story(story)
         groups, self.coverage[story] = {}, {}
         for group in self.groups:
             if group in self.vectorizers:
@@ -118,7 +109,8 @@ class EncodingFeatures:
                 full = np.pad(full, ((0, 5), (0, 0)))
                 values, mask = fir_design(full, rows, delays)
             groups[group] = values
-            valid &= mask
+            if values.shape[0] != len(valid) or mask.shape != valid.shape or np.any(valid & ~mask):
+                raise ValueError("A condition would silently narrow the shared comparison support: " + group)
         if not valid.any():
             raise ValueError(f"No jointly observed encoding rows in {story}.")
         return groups, valid
@@ -134,7 +126,8 @@ class EncodingFeatures:
         for group, vectorizer in self.vectorizers.items():
             vectorizer.save(directory / (group + ".json"))
         save_json(directory / "features.json", {"groups": self.groups, "train": self.train,
-                  "model": self.model, "layer": self.layer, "coverage": self.coverage})
+                  "model": self.model, "layer": self.layer, "coverage": self.coverage,
+                  "comparison_support": self.support.spec})
 
 
 def response_matrix(data, subject, stories, masks, section):
@@ -176,7 +169,7 @@ def target_moments(data, subject, train, validation, masks, batch):
     return gram / count, cross / count, total / count
 
 
-def select_encoding(data, options, split):
+def select_encoding(data, options, split, support):
     cfg, groups = data.config["encoding"], options["groups"]
     mixtures = [np.ones(len(groups)) / len(groups)]
     if len(groups) > 1:
@@ -185,7 +178,8 @@ def select_encoding(data, options, split):
             for w in mixtures for a in cfg["alphas"]]
     scores = [[] for _ in grid]
     for inner_index, fold in enumerate(split["inner"]):
-        factory = EncodingFeatures(data, fold["train"], groups, model=options.get("model"), layer=options.get("layer"))
+        factory = EncodingFeatures(data, fold["train"], groups, support=support,
+                                   model=options.get("model"), layer=options.get("layer"))
         x, train_masks = factory.assemble(fold["train"])
         z, val_masks = factory.assemble(fold["validation"])
         moments = target_moments(data, options["subject"], fold["train"], fold["validation"],
@@ -211,13 +205,22 @@ def select_encoding(data, options, split):
 def run_encoding(data, options):
     split = partition(data.semantics, options["fold"])
     data.validate_partition(split["train"], test=split["test"])
+    spec = comparison_spec(data.config, options)
+    options = {**options, "comparison_support": spec}
+    support = EncodingSupport(data, spec)
+    support_report = support.report(split["train"] + split["test"])
+    if any(s["retained"] == 0 for s in support_report["stories"].values()):
+        raise ValueError("A requested comparison has no jointly observed rows in a required story.")
     directory, identity = run_directory(data, "encoding", options)
     with exclusive_run(directory / "RUNNING.lock"):
         if (directory / "complete.json").exists():
             return directory
-        selected, selection = select_encoding(data, options, split)
+        write_report(directory / "support.json", support_report)
+        selected, selection = select_encoding(data, options, split, support)
+        selection["support_hash"] = support_report["content_hash"]
         write_report(directory / "selection.json", selection)
-        factory = EncodingFeatures(data, split["train"], options["groups"], model=options.get("model"), layer=options.get("layer"))
+        factory = EncodingFeatures(data, split["train"], options["groups"], support=support,
+                                   model=options.get("model"), layer=options.get("layer"))
         x, masks = factory.assemble(split["train"])
         test = {s: factory.story(s) for s in split["test"]}
         ridge = GroupRidge(**selected).fit_design(x)
@@ -229,6 +232,9 @@ def run_encoding(data, options):
         batch, summaries = data.config["encoding"]["target_batch"], {}
         with h5py.File(directory / "encoding.h5", "w") as file:
             file.attrs["complete"] = False
+            file.attrs["support_hash"] = support_report["content_hash"]
+            for story, mask in masks.items():
+                file.create_dataset("training_response_rows/" + story, data=np.flatnonzero(mask))
             for group, values in ridge.training.items():
                 file.create_dataset("training_features/" + group, data=values.astype(np.float32), compression="lzf")
             dual = file.create_dataset("dual", (len(next(iter(x.values()))), voxels), dtype="f4", compression="lzf")
@@ -270,6 +276,48 @@ def run_encoding(data, options):
                                     "valid_rows": int(test[story][1].sum()), "voxels": voxels}
             file.attrs["complete"] = True
         write_report(directory / "complete.json", {"identity": identity, "partition": split,
-                     "selected": selected, "stories": summaries,
+                     "selected": selected, "stories": summaries, "support_hash": support_report["content_hash"],
                      "interpretation": "Heldout prediction of measured native voxels. Per-group contributions are model-dependent, not causal effects."})
     return directory
+
+
+def compare_encoding(first, second):
+    """Paired descriptive effects; enforce matching support before subtracting scores."""
+    from .io import object_hash
+    first, second = Path(first), Path(second)
+    a, b = read_json(first / "complete.json"), read_json(second / "complete.json")
+    if any(r["identity"]["kind"] != "encoding" for r in (a, b)):
+        raise ValueError("Paired encoding comparison requires two completed encoding runs.")
+    for key in ("semantic_build_hash", "data_contract_hash", "config", "code", "packages"):
+        if a["identity"].get(key) != b["identity"].get(key):
+            raise ValueError("Paired encoding run contracts differ: " + key)
+    if a["partition"] != b["partition"] or a["identity"]["options"]["subject"] != b["identity"]["options"]["subject"]:
+        raise ValueError("Paired encoding effects require the same participant and nested story partition.")
+    supports = [read_json(p / "support.json") for p in (first, second)]
+    assert_matched_support(*supports)
+    if any(r.get("support_hash") != s["content_hash"] for r, s in zip((a, b), supports, strict=True)):
+        raise ValueError("Run and comparison support identities differ.")
+    stories = {}
+    with h5py.File(first / "encoding.h5", "r") as af, h5py.File(second / "encoding.h5", "r") as bf:
+        for file in (af, bf):
+            if not file.attrs["complete"] or file.attrs.get("support_hash") != supports[0]["content_hash"]:
+                raise ValueError("Encoding output has missing or mismatched support.")
+            for story in a["partition"]["train"]:
+                if file["training_response_rows/" + story][()].tolist() != supports[0]["stories"][story]["response_row_indices"]:
+                    raise ValueError("Encoding training rows differ from comparison support.")
+        for story in a["partition"]["test"]:
+            for file in (af, bf):
+                if file[story]["response_rows"][()].tolist() != supports[0]["stories"][story]["response_row_indices"]:
+                    raise ValueError("Encoding test rows differ from comparison support.")
+            left, right = af[story]["mean_response_correlation"][()], bf[story]["mean_response_correlation"][()]
+            if left.shape != right.shape:
+                raise ValueError("Native voxel coordinates differ.")
+            valid = np.isfinite(left) & np.isfinite(right)
+            difference = right[valid] - left[valid]
+            stories[story] = {"finite_paired_voxels": int(valid.sum()), "total_voxels": len(valid),
+                              "mean_voxel_delta_r": float(difference.mean()) if len(difference) else None,
+                              "response_rows": supports[0]["stories"][story]["retained"]}
+    return {"first": object_hash(a["identity"]), "second": object_hash(b["identity"]),
+            "direction": "second minus first", "subject": a["identity"]["options"]["subject"],
+            "support_hash": supports[0]["content_hash"], "stories": stories,
+            "interpretation": "Paired descriptive prediction differences. Voxels/timepoints are not independent replicates; no population p-value is inferred here."}

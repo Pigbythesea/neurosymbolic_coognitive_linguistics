@@ -46,6 +46,10 @@ def main():
     parser.add_argument("--allow-partial", action="store_true", help="Explicitly label an incomplete-annotation development analysis")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("preflight")
+    paired = sub.add_parser("compare-encoding", help="Paired effects with identical declared training/test support")
+    paired.add_argument("first", type=Path)
+    paired.add_argument("second", type=Path)
+    paired.add_argument("--output", type=Path, required=True)
     compare = sub.add_parser("compare")
     compare.add_argument("first", type=Path)
     compare.add_argument("second", type=Path)
@@ -65,6 +69,12 @@ def main():
             run.add_argument("--reviewed-only", action="store_true")
         if command == "encoding":
             run.add_argument("--groups", nargs="+", required=True)
+            support = run.add_mutually_exclusive_group(required=True)
+            support.add_argument("--comparison", help="Named comparison in config: same value for baseline and augmented runs")
+            support.add_argument("--mask-groups", nargs="+", help="Explicit UNION of feature groups across all compared conditions")
+            run.add_argument("--mask-policy", choices=["comparison", "all-groups"], default="comparison")
+            run.add_argument("--mask-model", action="append", dest="mask_models", metavar="MODEL_ID:LAYER",
+                             help="Repeat for all compared frozen states, identically on baseline and model conditions")
         if command == "decoder":
             run.add_argument("--family", choices=["prior", "linear", "mlp", "structured"], required=True)
             run.add_argument("--device", default="cpu")
@@ -87,6 +97,12 @@ def main():
     if args.command == "compare":
         from neurosym.geometry import compare_geometry, grounding_stability
         report = (grounding_stability if args.maps else compare_geometry)(args.first, args.second, permutations=args.permutations, seed=args.seed)
+        write_report(args.output, report)
+        print(json.dumps(report, indent=2))
+        return
+    if args.command == "compare-encoding":
+        from neurosym.encoding import compare_encoding
+        report = compare_encoding(args.first, args.second)
         write_report(args.output, report)
         print(json.dumps(report, indent=2))
         return

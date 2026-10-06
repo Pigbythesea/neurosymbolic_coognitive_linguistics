@@ -5,6 +5,8 @@ cd /d "%~dp0.."
 if errorlevel 1 exit /b 1
 .venv-analysis\Scripts\python.exe -B scripts\verify_reviewed_semantics.py
 if errorlevel 1 exit /b 1
+.venv-analysis\Scripts\python.exe -B scripts\verify_encoding_support.py
+if errorlevel 1 exit /b 1
 .venv-analysis\Scripts\python.exe -B scripts\verify_analysis.py
 if errorlevel 1 exit /b 1
 .venv-analysis\Scripts\python.exe -B scripts\package_analysis.py

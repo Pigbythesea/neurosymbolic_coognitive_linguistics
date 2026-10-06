@@ -22,6 +22,17 @@
     "alphas": [0.1, 1.0, 10.0, 100.0, 1000.0],
     "group_mixtures": 8,
     "target_batch": 2048,
-    "model_kind": "words"
+    "model_kind": "words",
+    "comparisons": {
+      "concepts": ["presentation", "C"],
+      "binding": ["presentation", "C", "B", "BR"],
+      "general-binding": ["presentation", "C", "GB", "GBR"],
+      "predicate-binding": ["presentation", "C", "PB", "PBR"],
+      "reference": ["presentation", "C", "R"],
+      "scope": ["presentation", "C", "S"],
+      "discourse": ["presentation", "C", "D"],
+      "state": ["presentation", "C", "U"],
+      "joint": ["presentation", "L", "C", "B", "BR", "GB", "GBR", "PB", "PBR", "R", "S", "D", "U"]
+    }
   }
 }

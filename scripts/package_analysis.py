@@ -14,7 +14,7 @@ from neurosym.io import object_hash, read_json
 
 MODULES = ["__init__", "io", "dataset", "extraction_inputs", "model_registry", "temporal", "extraction",
            "model_features", "graphs", "semantics", "semantic_queries", "semantic_records", "semantic_features",
-           "analysis_data", "analysis_runs", "spatial", "decoders", "decoder_fit", "encoding", "geometry",
+           "analysis_data", "analysis_runs", "spatial", "decoders", "decoder_fit", "encoding", "encoding_support", "geometry",
            "reviewed_archive", "reviewed_graph", "reviewed_queries", "reviewed_compile"]
 
 
@@ -24,6 +24,11 @@ def main():
     verification = read_json(ROOT / "artifacts/analysis-verification.json")
     if verification["status"] != "verified" or verification["semantic_build_hash"] != data.semantics.build_hash:
         raise ValueError("Verify the FINAL compiled annotation build before packaging; the old snapshot's receipt is insufficient.")
+    support = read_json(ROOT / "artifacts/encoding-support-verification.json")
+    if (support["status"] != "verified" or support["semantic_build_hash"] != data.semantics.build_hash or
+            support.get("config_hash") != object_hash(data.config) or verification.get("config_hash") != object_hash(data.config) or
+            support.get("verification_script_sha256") != hashlib.sha256((ROOT / "scripts/verify_encoding_support.py").read_bytes()).hexdigest()):
+        raise ValueError("Verify comparison support on the complete real corpus with the current analysis configuration.")
     reviewed = read_json(ROOT / "artifacts/reviewed-semantics-verification.json")
     if reviewed["status"] != "verified" or reviewed["semantic_build_hash"] != data.semantics.build_hash:
         raise ValueError("Full accepted-corpus scope verification is required before packaging.")
@@ -41,7 +46,8 @@ def main():
     shared = ["configs/analysis.json", "configs/extraction.json", "configs/alignment.json", "configs/spatial.json",
               "requirements/analysis.txt", "scripts/run_analysis.sbatch", "docs/analysis.md", "docs/analysis_environment.md",
               "data/processed/deniz/contract.json", "artifacts/analysis-verification.json",
-              "artifacts/reviewed-semantics-verification.json", "configs/semantics.json", "docs/reviewed_downstream.md"]
+              "artifacts/reviewed-semantics-verification.json", "artifacts/encoding-support-verification.json",
+              "configs/semantics.json", "docs/reviewed_downstream.md", "docs/encoding_support.md"]
     for name in shared:
         contents[name] = (ROOT / name).read_bytes()
     folders = [data.semantics.build, data.spatial.path, ROOT / "data/atlases/schaefer200",

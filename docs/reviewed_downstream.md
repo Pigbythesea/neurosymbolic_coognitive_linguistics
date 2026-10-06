@@ -71,9 +71,14 @@ separate feature route for compositional holdouts. Opaque qualification still
 contributes typed dimension features and retains its complete symbolic value.
 
 Uncertain feature contributions are withheld, and their group's affected
-temporal support is marked unavailable. Matched encoding comparisons use a
-common mask across semantic groups, timing and word-alignment support. Coverage
-is reported per story; withheld contributions are not treated as observed zeros.
+temporal support is marked unavailable. Each encoding comparison explicitly
+declares the union of groups required by its conditions. Those conditions share
+that comparison's mask across training, validation and test, including timing,
+word alignment and all declared frozen-state availability. Unrelated uncertain
+groups do not remove rows. The earlier all-group intersection remains an explicit
+robustness policy. Coverage and exact row identities are reported per story;
+withheld contributions are not treated as observed zeros. See
+[encoding_support.md](encoding_support.md) for the policy and execution interface.
 
 All feature vocabularies, frequency thresholds, scaling, parcel-local PCA,
 decoder embeddings, ridge tuning and stopping decisions are fitted within the
@@ -147,6 +152,11 @@ It also checks serialized ordered grounding profiles, the existing ridge
 algebra, local projection, timing and nine participant atlas contracts. Numerical
 inputs are actual released textual features, explicitly not fMRI or substitutes
 for modern hidden states. Its receipt is `artifacts/analysis-verification.json`.
+
+`scripts/verify_encoding_support.py` independently reconstructs availability
+from all real uncertainty records, checks actual paired designs across the whole
+corpus, reproduces the all-group mask and rejects unmatched comparison support.
+Its detailed receipt is `artifacts/encoding-support-verification.json`.
 
 In local Windows CMD, the complete compilation, verification and packaging path is:
 
