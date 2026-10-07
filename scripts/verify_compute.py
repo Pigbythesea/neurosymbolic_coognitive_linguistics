@@ -27,6 +27,7 @@ from neurosym.analysis_runs import write_report, decoder_metrics
 from neurosym.compute import FoldCache, FP64, atomic_torch_save, file_hash
 from neurosym.decoder_fit import evaluate, train_decoder, fit_identity, examples_and_windows
 from neurosym.decoders import SemanticDecoder, acceptable_loss, query_vocabulary
+from neurosym.decoder_batch import choice_targets, choice_losses
 from neurosym.encoding import GroupRidge, spectral_losses, spectrum, response_correlations
 from neurosym.storage import ResidentCache, DiskBudget, size_bytes
 from neurosym.execution import code_identity, execution_manifest
@@ -43,7 +44,7 @@ def close(first, second, *, atol=1e-8, rtol=1e-8):
     return float(np.max(np.abs(first - second))) if np.size(first) else 0.
 
 
-def real_inputs(data):
+def real_inputs(data, *, include_full_source=False):
     arrays = [data.reader.features(s, ['english1000', 'letters', 'numwords', 'numletters'], trim=False)
               for s in ['story_01', 'story_02']]
     values = arrays[0]['english1000']
@@ -66,6 +67,18 @@ def real_inputs(data):
     if not expected <= set(selected):
         raise ValueError('Accepted real operator coverage is incomplete: ' + str(expected - set(selected)))
     examples, windows, transformed = list(selected.values()), {}, {}
+    # Include an entire actual source as well as operator coverage: source
+    # batching must handle shared descriptors and unequal candidate counts.
+    if include_full_source:
+        first_story = examples[0]['story_id']
+        source_queries = {}
+        for example in data.examples(first_story):
+            source = sources[example['source_id']]
+            if source['decoder_timing_eligible'] and source['raw_feature_bin'] >= 4:
+                source_queries.setdefault(example['source_id'], []).append(example)
+        full_source = max(source_queries.values(), key=lambda group: sum(len(e['inputs']['candidates']) for e in group))
+        known = {e['query_id'] for e in examples}
+        examples.extend(e for e in full_source if e['query_id'] not in known)
     for e in examples:
         story = e['story_id']
         if story not in transformed:
@@ -73,6 +86,59 @@ def real_inputs(data):
         slot = sources[e['source_id']]['raw_feature_bin']
         windows[e['source_id']] = transformed[story][slot - 4:slot].transpose(1, 0, 2)[None]
     return arrays, projector, examples, windows
+
+
+def verify_source_batches(examples, windows, projector, *, device):
+    from collections import defaultdict
+    groups = defaultdict(list)
+    for example in examples:
+        groups[example['source_id']].append(example)
+    vocabulary = query_vocabulary(examples)
+    errors = {}
+    for family in ('prior', 'linear', 'mlp', 'structured'):
+        torch.manual_seed(11)
+        reference = SemanticDecoder(family, (8, 4, 3), vocabulary, hidden=64, site_mask=projector.site_mask)
+        reference.source_batched = False
+        candidate = copy.deepcopy(reference).to(device)
+        candidate.source_batched = True
+        maximum, gradient_error, loss_error = 0., 0., 0.
+        for source, queries in groups.items():
+            x = torch.from_numpy(windows[source][0])
+            reference.zero_grad(set_to_none=True)
+            candidate.zero_grad(set_to_none=True)
+            reference.descriptors.begin_source()
+            observed = reference.encode_observation(None if family == 'prior' else x)
+            original = [reference.answer(observed, e['inputs'])[0] for e in queries]
+            projected = candidate.encode_observation(None if family == 'prior' else x.to(device))
+            batched = candidate.answer_many(projected, [e['inputs'] for e in queries])
+            for a, b in zip(original, batched, strict=True):
+                maximum = max(maximum, close(a.detach().numpy(), b[:len(a)].detach().cpu().numpy(), atol=3e-5, rtol=3e-5))
+                if not torch.isneginf(b[len(a):]).all():
+                    raise AssertionError('Padded alternatives have nonzero probability.')
+            a_loss = sum(e['weight'] * acceptable_loss(a, e['acceptable_indices']) for a, e in zip(original, queries, strict=True))
+            targets = choice_targets(queries, device)
+            b_loss = (targets['weights'] * choice_losses(batched, targets)).sum()
+            loss_error = max(loss_error, close(a_loss.detach().numpy(), b_loss.detach().cpu().numpy(), atol=3e-5, rtol=3e-5))
+            a_loss.backward()
+            b_loss.backward()
+            for (name, a), (other, b) in zip(reference.named_parameters(), candidate.named_parameters(), strict=True):
+                if name != other or (a.grad is None) != (b.grad is None):
+                    raise AssertionError('Source batching changed gradient support: ' + name)
+                if a.grad is not None:
+                    gradient_error = max(gradient_error, close(a.grad.numpy(), b.grad.cpu().numpy(), atol=4e-5, rtol=4e-5))
+            # Cached constants must not retain an autograd graph or mix order.
+            with torch.no_grad():
+                observed = candidate.encode_observation(None if family == 'prior' else x.to(device))
+                again = candidate.answer_many(observed, [e['inputs'] for e in queries])
+                reverse = candidate.answer_many(observed, [e['inputs'] for e in reversed(queries)])
+                for i, e in enumerate(queries):
+                    count = len(e['inputs']['candidates'])
+                    close(again[i, :count].cpu().numpy(), reverse[len(queries) - 1 - i, :count].cpu().numpy(), atol=3e-5, rtol=3e-5)
+            reference.descriptors.end_source()
+            if candidate._source_program_bytes > candidate.source_program_budget:
+                raise AssertionError('Source program cache exceeded its byte budget.')
+        errors[family] = {'logit_max_error': maximum, 'gradient_max_error': gradient_error, 'loss_max_error': loss_error}
+    return errors
 
 
 def verify(data, *, device='cpu'):
@@ -170,11 +236,13 @@ def verify(data, *, device='cpu'):
         ref.factorized_relations = False
         ref.reuse_observation = False
         ref.reuse_query_plans = False
+        ref.source_batched = False
         opt = copy.deepcopy(ref).to(device)
         opt.descriptors.batched = True
         opt.factorized_relations = True
         opt.reuse_observation = True
         opt.reuse_query_plans = True
+        opt.source_batched = True
         maximum = 0.
         for e in examples:
             observed = torch.from_numpy(windows[e['source_id']][0])
@@ -201,6 +269,10 @@ def verify(data, *, device='cpu'):
         if decoder_metrics(detailed) != decoder_metrics(lean):
             raise AssertionError('Validation without probability transfers changed metrics.')
         errors[family] = maximum
+
+    print('COMPUTE CHECK: source-batched logits, weighted losses, gradients and candidate order', flush=True)
+    _, batch_projector, batch_examples, batch_windows = real_inputs(data, include_full_source=True)
+    batch_errors = verify_source_batches(batch_examples, batch_windows, batch_projector, device=device)
 
     # Actual prior eligibility and repeats need no fMRI arrays or dummy windows.
     prior_examples, no_windows, _ = examples_and_windows(data, ['story_11'], None,
@@ -416,11 +488,14 @@ def verify(data, *, device='cpu'):
              'execution_manifest_hash': manifest['content_hash'], 'fit_job_counts': manifest['counts'],
              'worker_counts': manifest['worker_counts'], 'submission_arrays': len(stages),
             'ridge_operator_max_error': operator_error, 'ridge_prediction_max_error': prediction_error,
-             'ridge_selection_mse_max_error': score_error, 'decoder_logit_max_errors': errors,
+            'ridge_selection_mse_max_error': score_error, 'decoder_logit_max_errors': errors,
+             'source_batch_errors': batch_errors,
+             'source_batch_query_ids': [e['query_id'] for e in batch_examples],
              'merged_pca_projection_errors': pca_errors,
             'checkpoint_parameter_error': checkpoint_error, 'query_ids': [e['query_id'] for e in examples],
              'checks': ['adaptive primal/dual FP64 ridge, compact group operators and selection',
                         'dense/factorized decoder logits/gradients/routing and observation reuse',
+                       'source-batched public programs, weighted losses, gradients and candidate order',
                        'validation metric transfers', 'actual query-only prior eligibility/repeats and fit reuse',
                          'fold cache serialization/invalidation/budgets', 'epoch and mid-source resume including optimizer/RNG/selection',
                         'story-moment PCA, subspaces/ranks and device projection', 'OS lock release and HDF trace sharing',

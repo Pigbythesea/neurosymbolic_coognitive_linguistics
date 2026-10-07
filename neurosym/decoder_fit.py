@@ -13,6 +13,7 @@ import torch
 from .analysis_runs import composition_partition, decoder_metrics, partition, run_directory, write_report
 from .compute import FoldCache, Timings, atomic_torch_save, file_hash
 from .decoders import SemanticDecoder, acceptable_loss, detached_trace, query_vocabulary
+from .decoder_batch import choice_targets, choice_losses
 from .runtime import analysis_lock as exclusive_run, deadline
 from .io import object_hash, read_json
 from .storage import require_free_space
@@ -130,6 +131,26 @@ def evaluate(model, examples, windows, *, pairing=None, trace_file=None, probabi
                 trace_arrays = {}  # identical arrays share HDF storage within this source/repeat
                 model.descriptors.begin_source()
                 observed = model.encode_observation(None if windows is None else windows[observed_source][repeat], checked=True)
+                if model.source_batched and trace_file is None:
+                    targets = choice_targets(queries, device)
+                    logits = model.answer_many(observed, [e['inputs'] for e in queries])
+                    losses = choice_losses(logits, targets)
+                    correct = ((logits.argmax(-1)[:, None] == targets['indices']) & targets['valid']).any(-1)
+                    measured = torch.stack((correct.to(logits.dtype), losses), dim=-1).cpu().numpy()
+                    predicted = logits.softmax(-1).cpu().numpy() if probabilities else None
+                    for index, example in enumerate(queries):
+                        row = {k: example[k] for k in ('query_id', 'source_id', 'story_id', 'family', 'weight', 'annotation_review_status')}
+                        count = len(example['inputs']['candidates'])
+                        row.update(repeat=repeat, observation_source=observed_source,
+                                   acceptable_indices=example['acceptable_indices'],
+                                   chance=len(example['acceptable_indices']) / count,
+                                   correct=float(measured[index, 0]), nll=float(measured[index, 1]))
+                        if probabilities:
+                            row['probabilities'] = predicted[index, :count].tolist()
+                        rows.append(row)
+                    model.descriptors.end_source()
+                    model.end_observation()
+                    continue
                 pending, metrics, probability_blocks = [], [], []
                 for example in queries:
                     logits, trace = model.answer(observed, example["inputs"], capture=trace_file is not None)
@@ -196,7 +217,7 @@ def fit_identity(data, model, examples, windows, validation, **settings):
             'device': str(next(model.parameters()).device), 'decoder_config': data.config['decoder'],
             'train': describe(examples, windows),
             'validation': describe(*validation) if validation else None, 'settings': settings,
-            'code': {n: file_hash(Path(__file__).parent / n) for n in ('decoder_fit.py', 'decoders.py', 'compute.py')}}
+            'code': {n: file_hash(Path(__file__).parent / n) for n in ('decoder_fit.py', 'decoders.py', 'decoder_batch.py', 'compute.py')}}
 
 
 def train_decoder(data, model, examples, windows, *, learning_rate, epochs, seed,
@@ -223,6 +244,7 @@ def train_decoder(data, model, examples, windows, *, learning_rate, epochs, seed
         validation = (validation[0], None if model.family == 'prior' else device_windows(validation[1], device))
     for example in examples:
         groups[example["source_id"]].append(example)
+    supervision = {source: choice_targets(queries, device) for source, queries in groups.items()} if model.source_batched else {}
     story_counts = defaultdict(int)
     for queries in groups.values():
         story_counts[queries[0]["story_id"]] += 1
@@ -276,9 +298,14 @@ def train_decoder(data, model, examples, windows, *, learning_rate, epochs, seed
             source_loss = torch.zeros((), device=device)
             for x in values:
                 observed = model.encode_observation(None if windows is None else x, checked=True)
-                for example in queries:
-                    logits, _ = model.answer(observed, example["inputs"])
-                    source_loss = source_loss + example["weight"] * acceptable_loss(logits, example["acceptable_indices"]) / len(values)
+                if model.source_batched:
+                    logits = model.answer_many(observed, [example['inputs'] for example in queries])
+                    targets = supervision[source]
+                    source_loss = source_loss + (targets['weights'] * choice_losses(logits, targets)).sum() / len(values)
+                else:
+                    for example in queries:
+                        logits, _ = model.answer(observed, example["inputs"])
+                        source_loss = source_loss + example["weight"] * acceptable_loss(logits, example["acceptable_indices"]) / len(values)
             # Equal expected total contribution per story across an epoch.
             weight = len(groups) / (len(story_counts) * story_counts[queries[0]["story_id"]])
             if not torch.isfinite(source_loss):
@@ -296,6 +323,11 @@ def train_decoder(data, model, examples, windows, *, learning_rate, epochs, seed
                                'elapsed_seconds': previous_seconds + time.perf_counter() - started})
                 deadline.check()
         record = {"epoch": epoch, "train_source_mean_nll": float(torch.stack(losses).cpu().numpy().astype(np.float64).mean())}
+        record.update(training_seconds=previous_seconds + time.perf_counter() - started,
+                      train_sources=len(groups), train_queries=len(examples),
+                      query_execution='source-batched' if model.source_batched else 'scalar-reference',
+                      source_program_cache_bytes=model._source_program_bytes)
+        validation_started = time.perf_counter()
         if validation is not None:
             val_examples, val_windows = validation
             value = decoder_metrics(evaluate(model, val_examples, val_windows, probabilities=False))["story_macro"]["nll"]
@@ -306,6 +338,7 @@ def train_decoder(data, model, examples, windows, *, learning_rate, epochs, seed
                 best_epoch = epoch
             else:
                 stale += 1
+        record['validation_seconds'] = time.perf_counter() - validation_started if validation is not None else 0.
         record['wall_seconds'] = previous_seconds + time.perf_counter() - started
         history.append(record)
         completed = epoch

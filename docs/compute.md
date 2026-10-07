@@ -9,6 +9,56 @@ hyperparameter grids, seeds, epochs and early-stopping rules.
 
 ## Current verification and next command
 
+The latest decoder update is **source-batched execution**, motivated by cluster
+measurements: warm linear brain epochs took 335-354 s, a structured brain epoch
+took 987.6 s, and five-second GPU samples showed 7-17% activity with about 1 GB
+of framebuffer use. These measurements describe the preceding implementation;
+the speed of the new implementation has not yet been measured on a GPU.
+
+`decoder_batch.py` packs public inputs for a complete source, embeds descriptor
+bags together, scores prior/linear/MLP candidates in one batch, and batches
+structured primitive and binding calculations. Operator gates are applied after
+site reduction for binding, retaining the invalid-site correction. Compose
+retains dense relation row-softmax and the original sequence of transitions.
+Losses retain acceptable-answer marginalization, exact candidate order, repeat
+averaging and source/story weights. AdamW still updates once per source. No
+cross-source minibatch, mixed precision or new model parameter was introduced.
+The pointwise path remains available for reference checks and detailed traces;
+legacy structured query syntax also retains that path. All accepted reviewed
+query tasks use the new executor during training and untraced validation.
+
+Packed constants are bounded to 128 MiB per model (with at most 2048 source
+programs); learned vectors are recomputed each observation/update. Constants are
+cleared on device/dtype changes and are not checkpointed or persisted to disk.
+Epoch logs now separate training/validation time and report packed-cache bytes.
+
+A focused CPU comparison on 14 real accepted queries passed all four families:
+maximum logit error 1.20e-6, gradient error 4.18e-7, weighted loss error 2.39e-7.
+A broader invocation reached the checkpoint/cache phase after passing source
+batch comparisons including the first story's complete eligible source with
+the largest total candidate count. The agent interrupted that long invocation
+before completion under the user-run-long-commands workflow. It is not a full
+verification receipt. That complete source is now checked specifically in the
+batch comparison rather than redundantly expanded through unrelated checks.
+**Full updated preparation/packaging, recovery checks and actual CUDA equivalence
+remain user-run requirements before transfer and experiments.**
+
+The prior now has its own `cpu-prior` resource profile: four CPUs, 12 GiB,
+one-hour resumable windows. CPU fallback profiles respect the inspected med
+4000 MiB-per-CPU rule (17 CPUs/64 GiB preparation, 34/128 encoding, 9/32 decoding).
+GPU decoder defaults use 30-minute resumable windows and concurrency two for
+the currently available shared-account capacity. The account limit is 16 GPUs,
+not a permanent two-GPU project quota. Other stage concurrency limits are not a
+reservation and must be budgeted jointly against current account use. Revised
+decoder CPU/CUDA performance still needs measurement; the old prior comparison
+does not prove the fastest device for the new batched implementation.
+
+Code/config identities change with this update. Rebuild the bundle and execution
+manifest; preserve old fitted outputs/checkpoints with their original code and
+do not edit their identities to force reuse. Frozen model extraction and accepted
+annotation contents are unchanged. Existing receipts/ZIP are not certification
+of this updated source.
+
 The compiled build is readable after the researcher's Windows ACL repair.
 Python 3.11 syntax and configuration parsing passed during implementation.
 A short calculation on released Deniz letter features compared adaptive primal

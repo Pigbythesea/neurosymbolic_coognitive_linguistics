@@ -1,7 +1,7 @@
 # Scientific measurements and execution definitions
 
 This records the implementation-branch decisions of 2026-10-06. The primary
-scientific scope remains [PROJECT_HANDOFF.md](PROJECT_HANDOFF.md): concepts,
+scientific scope is consolidated in [SCIENTIFIC_STATUS_HANDOFF.md](SCIENTIFIC_STATUS_HANDOFF.md): concepts,
 binding, reference, scope and discourse in human recordings and frozen model
 states, studied through encoding, decoding and representational geometry.
 These definitions clarify what each implemented measurement does; they do not

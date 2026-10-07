@@ -1,10 +1,18 @@
 # Project handoff: scientific scope and design decisions
 
+> **Historical decision record.** Read [SCIENTIFIC_STATUS_HANDOFF.md](SCIENTIFIC_STATUS_HANDOFF.md)
+> for the current scientific scope, settled measurement definitions, superseded
+> decisions and open scientific questions (2026-10-07). The material below
+> preserves earlier reasoning and dated updates; its pending items and operational
+> status are not a current to-do list. Engineering status is maintained separately
+> in [ENGINEERING_HANDOFF.md](ENGINEERING_HANDOFF.md).
+
 **Recorded:** 2026-10-04  
-**Purpose:** Primary high-level reference for future research and coding threads.  
+**Purpose:** Historical high-level rationale and record of the researcher's decisions.
+
 **Status:** Decision record and scientific framing; not a report of experimental findings or a binding implementation manual.
 
-Read this file before proposing a new scope, interpreting the older proposals, or splitting implementation among agents. It preserves the conceptual discussion, the researcher's corrections to earlier advice, and the resulting direction. Most of this document concerns decisions made before implementation. Section 13 separately records operational decisions that followed, so they are not mistaken for original scientific commitments.
+Use this file to recover the original reasoning behind the current scientific handoff. It preserves the conceptual discussion, the researcher's corrections to earlier advice, and the resulting direction. Most of this document concerns decisions made before implementation. Section 13 separately records operational decisions that followed, so they are not mistaken for original scientific commitments.
 
 **Cluster handoff, 2026-10-06:** Billing admission was demonstrated under
 `tshu2_scai01`/`jhu`: job `996713_4` started, reused all 11 cached Qwen extraction
@@ -57,7 +65,7 @@ The researcher originally supplied two proposals and a longer discussion that ge
 
 The researcher was satisfied with the broad design and brainstorming but considered the technical proposal excessively prescriptive. The request was to understand and evaluate the research, not mechanically implement every instruction in that document.
 
-**Authority:** Later explicit researcher instructions govern. This handoff is the primary entry point to the agreed direction; the underlying researcher discussion takes precedence if this summary misrepresents it. The first-principles document explains the ideas. The technical proposal supplies methodological detail, candidate designs, and a reference registry. Statements in the older proposal calling itself authoritative do not override the researcher's subsequent corrections.
+**Authority:** Later explicit researcher instructions govern. The [current scientific handoff](SCIENTIFIC_STATUS_HANDOFF.md) is the primary entry point to the agreed direction; the underlying researcher discussion takes precedence if a summary misrepresents it. The first-principles document explains the ideas. The technical proposal supplies methodological detail, candidate designs, and a reference registry. Statements in the older proposal calling itself authoritative do not override the researcher's subsequent corrections.
 
 **Source-coverage note:** This is a consolidated decision record, not a verbatim conversation export. It was assembled from the researcher messages available in this thread and the two repository proposals. The shared link could not be reopened when writing this handoff; unavailable dialogue has not been reconstructed or attributed as a quotation. Scientific explanations inherited from the proposals are distinguished below from explicit researcher preferences and later implementation choices. This handoff is not a new systematic literature review.
 
@@ -406,7 +414,7 @@ Routine engineering choices can be made within the authorized scope. A change th
 | Topic | Decision to retain | Earlier assumption or shortcut it supersedes |
 |---|---|---|
 | Whether to pursue | Proceed with the integrated program using real paired data and available compute. | Indefinite feasibility discussion or a demonstration-only substitute. |
-| Source authority | Researcher discussion and later corrections govern; this file is the high-level entry point. | Treating the technical proposal as an executable manual. |
+| Source authority | Researcher discussion and later corrections govern; the current scientific handoff is the high-level entry point. | Treating the technical proposal as an executable manual. |
 | Timeline | Venue choice follows scientific readiness. | Deadline-driven reduction of the central questions. |
 | Workflow | Comprehensive implementation against shared contracts, with meaningful real-data verification. | Repeatedly shrinking to pilots, placeholders, or synthetic smoke outputs. |
 | Novelty | Compare actual questions, methods, evidence, and interpretation. | Declaring the project already done from overlapping terminology. |
@@ -423,8 +431,8 @@ Routine engineering choices can be made within the authorized scope. A change th
 
 ## 16. Maintaining this handoff
 
-Use this file to orient future threads and to resolve conflicts with old proposal defaults. Read the technical proposal for relevant methodological detail, then inspect the current code and manifests before deciding something is missing or fixed.
+Use this file for historical rationale. Start new threads with [SCIENTIFIC_STATUS_HANDOFF.md](SCIENTIFIC_STATUS_HANDOFF.md) and resolve current scientific decisions there. Read the technical proposal for relevant methodological detail, then inspect the current code and manifests before deciding something is missing or fixed.
 
-When the researcher makes a new high-level decision, update the relevant section and record what it supersedes. Keep changing run counts, job IDs, environment versions, and troubleshooting history in operational records. Do not allow an implementation workaround to silently become a new scientific objective.
+When the researcher makes a new high-level decision, update the current scientific handoff and record what it supersedes. Preserve this file's historical discussion. Keep changing run counts, job IDs, environment versions, and troubleshooting history in operational records. Do not allow an implementation workaround to silently become a new scientific objective.
 
 **Continuing brief:** Build the full study of structured linguistic meaning in human neural responses and modern frozen language-model representations. Preserve the complementary encoding, decoding, and geometry questions; use the actual recorded stimuli and justified semantic labels; keep claims matched to the evidence; and execute through the agreed local-development and researcher-operated cluster workflow.

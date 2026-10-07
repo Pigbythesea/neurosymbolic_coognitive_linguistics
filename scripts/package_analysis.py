@@ -14,7 +14,7 @@ from neurosym.io import object_hash, read_json
 
 MODULES = ["__init__", "io", "dataset", "extraction_inputs", "model_registry", "temporal", "extraction",
            "model_features", "graphs", "semantics", "semantic_queries", "semantic_records", "semantic_features",
-           "analysis_data", "analysis_runs", "spatial", "decoders", "decoder_fit", "encoding", "encoding_support", "geometry",
+           "analysis_data", "analysis_runs", "spatial", "decoders", "decoder_fit", "decoder_batch", "encoding", "encoding_support", "geometry",
            "reviewed_archive", "reviewed_graph", "reviewed_queries", "reviewed_compile", "experiment_plan", "compute", "storage", "execution", "pca", "runtime"]
 EXECUTION_SCRIPTS = ['scripts/run_analysis.py', 'scripts/verify_compute.py', 'scripts/submit_analysis.py',
                      'scripts/run_manifest_array.py', 'scripts/run_analysis_array.sbatch']

@@ -240,7 +240,7 @@ def verify(build):
             raise AssertionError("Native voxel/parcel assignment shape mismatch.")
         spatial[subject] = {"assigned": int((assignment >= 0).sum()), "total": len(assignment),
                             "observed_parcels": len(np.unique(assignment[assignment >= 0]))}
-    for relative in ["analysis_data.py", "analysis_runs.py", "decoders.py", "decoder_fit.py", "encoding.py", "encoding_support.py", "geometry.py", "spatial.py"]:
+    for relative in ["analysis_data.py", "analysis_runs.py", "decoders.py", "decoder_fit.py", "decoder_batch.py", "encoding.py", "encoding_support.py", "geometry.py", "spatial.py"]:
         ast.parse((ROOT / "neurosym" / relative).read_text(encoding="utf-8"), feature_version=(3, 11))
     from package_analysis import MODULES, EXECUTION_SCRIPTS
     from neurosym.experiment_plan import experiment_plan

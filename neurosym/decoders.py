@@ -236,6 +236,10 @@ class SemanticDecoder(nn.Module):
         self.factorized_relations = True
         self.reuse_observation = True
         self.reuse_query_plans = True
+        self.source_batched = True
+        self.source_program_budget = 128 * 2**20
+        self._source_programs = OrderedDict()
+        self._source_program_bytes = 0
         self.end_observation()
         sites, times, components = self.shape if family != 'prior' else (0, 0, 0)
         self.descriptors = DescriptorEncoder(vocabulary, hidden)
@@ -272,6 +276,17 @@ class SemanticDecoder(nn.Module):
             return self.global_projection(x.reshape(-1))
         e = F.gelu(torch.einsum("pf,pfh->ph", x.flatten(1), self.local_weight))
         return self.local_shared(e) * self.site_mask[:, None]
+
+    def _apply(self, fn, recurse=True):
+        # Packed constants belong to a device/dtype and never contain learned
+        # vectors. Rebuild them after to()/double(), without touching weights.
+        self._source_programs.clear()
+        self._source_program_bytes = 0
+        return super()._apply(fn, recurse=recurse)
+
+    def answer_many(self, observed, inputs):
+        from .decoder_batch import answer_many
+        return answer_many(self, observed, inputs)
 
     def end_observation(self):
         self._observed = None

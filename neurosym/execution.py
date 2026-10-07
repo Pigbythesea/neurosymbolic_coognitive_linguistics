@@ -84,7 +84,7 @@ def execution_manifest(data, *, phase='development', encoding_device='cuda', dec
         for seed in plan['seeds']:
             conditions = [{**obs, 'fold': fold, 'seed': seed, 'family': 'prior', 'device': 'cpu'}
                           for obs in observations]
-            add('prior-panel', {'conditions': conditions}, 'cpu-decoder', purpose='all observation panels, shared query-only fits')
+            add('prior-panel', {'conditions': conditions}, 'cpu-prior', purpose='all observation panels, shared query-only fits')
 
     for obs in observations:
         for fold in main_folds + contexts:
