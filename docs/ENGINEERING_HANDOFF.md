@@ -7,11 +7,13 @@ Remote facts below come from researcher-supplied logs, not direct cluster access
 
 ## Current position
 
-**Data, model features, the analysis environment, and the latest verified code
-are on the cluster. The full experiment has not been launched.** The latest
-optimization batches queries within each source passage and substantially
-improves runtime. It still takes hours to tune an ordinary decoder condition.
-The immediate task is a coordinated execution redesign before expanding the grid.
+**Data, model features and the existing analysis environment are on the cluster.
+Protocol 2 is implemented locally; it has not been packaged, transferred or
+qualified on CUDA. The full experiment has not been launched.** The researcher
+approved the claim-directed redesign: primary final-layer controls, descriptive
+intermediate-layer profiles, shared three-fold selection and cross-source
+minibatches. Scientific decisions are recorded in
+[SCIENTIFIC_STATUS_HANDOFF.md](SCIENTIFIC_STATUS_HANDOFF.md).
 
 The latest four GPU timing tasks and CPU-prior task ended through cooperative
 checkpointed yields. They are partial production fits, not completed result
@@ -41,38 +43,26 @@ an end-to-end runtime or final-output storage measurement.
 
 ## Exact version to preserve
 
-Local branch is `main`, HEAD `c9543802ec05b3cd307259bdca0f73256bfa7d3b`.
-**The verified implementation includes uncommitted changes. Cloning HEAD alone
-is insufficient.** Preserve the current working tree and verified bundle.
+Local implementation started from HEAD `39668387b0510004d5e4f4dfe6c40a23565d5ab1`.
+**Protocol 2 includes uncommitted changes. Cloning that HEAD alone is insufficient.**
+Preserve the working tree and retain the older bundle as historical evidence.
 
-Modified tracked files at handoff creation:
-
-```text
-configs/compute.json
-docs/CLUSTER_STATUS.md
-docs/compute.md
-neurosym/analysis_runs.py
-neurosym/decoder_fit.py
-neurosym/decoders.py
-neurosym/execution.py
-scripts/package_analysis.py
-scripts/verify_analysis.py
-scripts/verify_compute.py
-```
-
-New implementation/helper files not yet tracked:
+Current implementation centers on the three analysis/experiment/compute configs,
+decoder batching/selection, encoding selection, geometry, execution and packaging.
+New required modules are:
 
 ```text
-neurosym/decoder_batch.py
-scripts/benchmark_prior.py
-scripts/benchmark_prior.sbatch
-scripts/update_analysis.sbatch
+neurosym/protocol.py
+neurosym/decoder_minibatch.py
+neurosym/study_jobs.py
+neurosym/study_reports.py
+neurosym/grounding_checks.py
 ```
 
-This handoff is also newly created. In particular, `decoder_batch.py` is required
-by the updated executor, not an optional benchmark.
+The following identities describe the **previous verified cluster installation**,
+not the current working tree. The accepted semantic build itself is unchanged.
 
-| Identity | Current value |
+| Identity | Previously installed value |
 |---|---|
 | Accepted semantic build | `9bce4af5463a57683ed375a8b0fdcbcb83620bce923624d7075bd0c4f4ac847f` |
 | `artifacts/analysis-source.zip` SHA256 | `887975589fdb38a2fd626b5556551319436504e1cc8cebdc7e58a358929cb0e7` |
@@ -82,8 +72,8 @@ by the updated executor, not an optional benchmark.
 | Compute configuration hash | `8805b3651a715e568305151fe3a9e46c50e77b5e8389cbc7bf5526bd2636eea2` |
 | Experiment definition hash | `b90d89f9131e821e133ad3f43965a789008af1ee79eb1f1b27bb56f2ba068596` |
 
-The ZIP has 258 payload files and 89,708,425 bytes. Its SHA was rechecked for
-this handoff. The isolated code directory is packaged in the ZIP and installed
+That ZIP had 258 payload files and 89,708,425 bytes, as recorded in the previous
+handoff. The isolated code directory is packaged in the ZIP and installed
 on the cluster; it is not an unpacked local directory. The manifest is
 `artifacts/execution/<manifest-hash>/manifest.json`, also identified by
 `artifacts/execution/latest.json`.
@@ -94,39 +84,52 @@ identities, and transfer. Never relabel old checkpoints or receipts to force
 compatibility with new training code. Preserve them under their original identity.
 These optimization changes do not require reannotation or frozen-model extraction.
 
-## Implemented and verified
+## Implemented locally; verification boundary
 
-- [decoder_batch.py](../neurosym/decoder_batch.py) compiles public query inputs
-  into packed constants and batches descriptor, candidate, primitive, binding,
-  and composition calculations **within one source**. Supervision remains separate.
-- [decoder_fit.py](../neurosym/decoder_fit.py) still performs **one AdamW update
-  per source**, roughly 800 updates per epoch. There is no cross-source minibatch
-  or vectorized independent-fit training yet. Source order, weighting, candidate
-  order, repeat averaging, and model parameters are preserved.
-- Decoder arithmetic remains FP32; PCA/ridge use FP64; TF32 is disabled.
-  Existing training settings remain hidden size 64, maximum 80 epochs, patience
-  10, learning rates 0.0003/0.001, and seeds 11/29/47.
-- Packed query constants have a 128 MiB / 2,048-program per-model memory limit.
-  Learned values are recomputed after updates. Actual fits reach this cap;
-  eviction/recompilation is a candidate bottleneck, not yet profiled attribution.
-- Untraced validation uses batching. Detailed held-out trace export retains the
-  scalar reference path. Epoch logs separate training and validation timing,
-  but **exclude the checkpoint write that follows the epoch**.
-- PCA merges training-only per-story centered moments; GPU statistics/projection
-  and a CPU partial eigensolver are the current hybrid choice. Ridge chooses
-  primal/dual solves and reuses compatible designs, spectra, and response moments.
-- Encoding saves response operators instead of enormous dense voxel prediction
-  arrays. Identical compatible fits can share outputs. Geometry has GPU product
-  and permutation paths, but its complete downstream schedule still needs to be
-  included in end-to-end execution planning.
+- Source programs now support multiple observations in one tensor execution.
+  Training packs 16 sources per AdamW step, precompiles train/validation query
+  constants once per fit, and bounds their combined storage to 1 GiB. Public
+  inputs and targets remain separate. The shorter last batch and observation
+  repeats retain the declared equal-story/source objective.
+- Three deterministic whole-story inner folds select nonlinear readout settings
+  once at seed 11 per observation/outer partition; refit seeds share that receipt.
+  Linear probes use fixed settings. Structured nulls reuse matched settings.
+  These are protocol changes, not identical old optimizer trajectories.
+- Encoding uses one union of three candidate weight grids and one selected fit;
+  validation rows and fold scores preserve equal-story weighting. Existing
+  FP64 primal/dual algebra, response operators and exact-fit sharing remain.
+- Intermediate-layer probes prepare only outer-fold projectors. PCA still uses
+  GPU moments/projection and the configured CPU partial eigensolver. Decoder
+  arithmetic stays FP32; PCA/ridge stay FP64; TF32 is disabled.
+- Full traces are exported only for structured context parents. Trace export
+  resumes at completed source/repeat boundaries. Faithfulness replacement
+  checks also save progress at allocation boundaries. Geometry aggregates
+  streaming sums, retains anatomical signatures and RDMs, and avoids storing
+  redundant per-story high-dimensional arrays in the default manifest.
+- The manifest includes geometry, semantic coverage, comparison panels, paired
+  effects, crossed intervals and reporting. Missing semantic support is explicitly
+  unavailable. Query/target/weight support must match for decoder contrasts.
+- The dispatcher caps its outstanding GPU tasks at eight across its project
+  manifests, under a shared controller lock; CPU workers have a separate cap.
+  Manual jobs are outside that ledger. Arrays organize submissions; a task still
+  requests one GPU. Independent-fit vectorization/multiple processes sharing one
+  GPU are not implemented or assumed in a throughput forecast.
+- Packaging generates artifacts/analysis-transfer.json and copies the current
+  update helper. The helper verifies those uploaded hashes and requires an idle
+  project plus an allocated node. It no longer pins a superseded ZIP hash.
 
-The researcher completed all six stages of `scripts\prepare_analysis.cmd`:
-accepted-corpus/compiler checks, temporal support, real-query/experiment checks,
-compute equivalence/recovery, inventory, and checked packaging. CPU maximum
-batched logit/gradient/weighted-loss differences were approximately
-`2.623e-6 / 2.146e-6 / 9.537e-7`; resumed checkpoint parameter difference was zero.
-CUDA verification also passed. Verification uses actual accepted queries and
-released features; tiny verifier epochs are not production runtime estimates.
+Targeted checks on 160 actual accepted queries across seven real text-feature
+observations passed scalar/single-source/multi-source logits, losses and gradients
+for all four families (multi-source maxima approximately 2.39e-6 / 1.87e-7 /
+2.40e-6 respectively). CPU epoch and mid-minibatch recovery produced identical
+parameters and selection. Python 3.11 syntax and both phase dependency graphs
+passed. These checks do not validate convergence, full-array memory use or GPU
+throughput. The complete six-stage preparation and updated CUDA verification
+remain researcher-run requirements; old receipts do not certify protocol 2.
+Additional targeted checks passed trace/faithfulness export recovery on two
+complete real sources, streaming/compact geometry on 16 supported concepts,
+equal-story row scaling, and development semantic coverage (ten stories,
+eleven query families). The latter is a support audit, not annotation accuracy.
 
 Cluster `.venv-analysis` has PyTorch `2.10.0+cu128` (CUDA runtime 12.8).
 Existing `.venv` and `.venv-extraction` are separate environments. Setup/preflight
@@ -169,29 +172,32 @@ the entire current user queue has not been independently inspected.
 
 ## Workload and runtime target
 
-The current development manifest contains 25,146 logical items grouped into
-3,362 workers: 30 priors, 348 preparation items, 3,654 decoder fits, and 21,114
-encoding fits. Expected final-stage counts add 3 priors, 29 preparation items,
-348 decoders, and 2,106 encodings. Combined decoder count is 4,002 and encoding
-count 23,220. These are work items, not simultaneous GPUs or required job IDs.
-Complete geometry, comparisons, statistics, and reporting are additional scheduling
-work; fit-manifest completion alone is not project completion.
+Protocol 2 development resolves to 10,285 logical items in 4,033 workers:
 
-An ordinary current decoder fit performs nine inner folds times two learning
-rates, then a refit. Assuming 12–20 epochs per candidate, measured rates imply
-roughly 2.6–4.4 hours for linear selection and 6.3–10.6 hours for structured
-selection, before remaining fit/export costs. Earlier 15–60 minute fit estimates
-are superseded. A prior conditional full-grid extrapolation was about 100–160
-days on eight continuously occupied GPUs; it is not a measured end-to-end run
-and assumes epoch counts and unmeasured family costs.
+| Work | Development | Final |
+|---|---:|---:|
+| Selection receipts (including fixed linear settings) | 608 | 58 |
+| Decoder refits, including shared priors | 1,944 | 186 |
+| Decoder preparation | 318 | 29 |
+| Logical encoding fits | 5,688 | 567 |
+| Geometry panels | 220 | 0 |
+| Geometry comparison panels | 1,505 | 0 |
+| Semantic coverage / study report | 2 | 2 |
 
-**The goal is several days on eight GPUs; this is not yet achieved or forecast
-with confidence.** The proposed five-day engineering budget is 960 GPU-hours:
-600 decoder, 230 encoding, 70 preparation/geometry/statistics, 60 headroom.
-It requires about nine GPU-minutes per complete decoder fit, amortized across
-concurrent fits. The encoding allocation extrapolates only one nine-participant
-panel (5:16, about 40 GiB host RAM), so it needs broader measurement. Queue,
-engineering, and human review time are outside this compute budget.
+Final evaluation has 224 workers and remains a separate explicit release.
+There are 347 nonlinear/prior tuning conditions across both phases, each with
+three inner folds and two learning rates, followed by shared-settings refits.
+The 319 other selection receipts contain fixed linear settings and train no
+inner models. Encoding logical fits can still share identical numerical objects.
+These counts include all scheduled downstream work, not just fitted parents;
+they are not GPU allocations or simultaneous job IDs.
+
+The previous 4,002 decoder / 23,220 encoding counts and 100-160-day extrapolation
+describe the superseded grid. The several-days-on-eight-GPUs objective remains
+a throughput target, not an achieved result or defensible new runtime estimate.
+Measure protocol 2 selection, refit, export, geometry, host/VRAM use and concurrent
+throughput on the cluster. Do not multiply the old per-source epoch timings by
+the new fit counts, or infer a 16-fold speedup from batch size.
 
 ## Storage and cleanup
 
@@ -201,11 +207,15 @@ Hugging Face model cache 115 GiB, analysis cache 2.7 GiB, and analysis outputs
 directories. The shared lab filesystem previously had 8.9 TiB free; that is
 not a personal quota or reserved capacity.
 
-Full development/final encoding operator-array arithmetic is about 1.036 decimal
-TB before masking, compression, and identical-fit sharing. It excludes decoder
-weights/traces, feature vocabulary metadata, geometry, and caches. The previously
-discussed 2–3 TB workspace allowance is capacity planning, **not a measured size
-or validated upper bound**. Complete representative outputs are still needed.
+Protocol 2 development/final encoding operator-and-metric array arithmetic is
+approximately 252 decimal GB (235 GiB) before masking, compression and identical-fit
+sharing. This is an array ceiling for those outputs, not total workspace use;
+decoder weights/predictions/context traces, geometry, metadata and caches are
+additional. The previous 1.036 TB encoding figure and 2-3 TB planning allowance
+belonged to the old grid and must not be quoted as the new measured requirement.
+Geometry saves RDMs and anatomical signatures by default; wide native/implied
+signatures and all per-story vectors are reconstructible rather than duplicated
+in every panel. Actual complete output sizes remain to be measured.
 
 The disk analysis cache has a 128 GiB admission limit, 1 GiB entry reservations,
 and a 16 GiB minimum-free-space guard; it is not automatic disk LRU cleanup.
@@ -217,37 +227,27 @@ active ownership and the reproducibility/continuation requirements.
 
 ## Next engineering work, in order
 
-1. Preserve this working tree and bundle. Use the current measurements as the
-   baseline; do not launch or repeatedly resume the full old decoder grid.
-2. Implement one coordinated performance pass: precompile/reuse packed constants
-   against the actual working set, remove avoidable host synchronization, improve
-   batched tensor execution and trace export, and batch independent fits where
-   useful. Independent fits must retain separate parameters, optimizer states,
-   random streams, clipping, and stopping decisions. Profile to establish where
-   runtime is spent rather than assuming all unused VRAM buys speed.
-3. Obtain protocol decisions from the scientific thread before enabling either
-   **cross-source minibatches** or **three whole-story inner folds**. Both were
-   proposed, neither is implemented/adopted. Minibatching changes optimizer
-   trajectories and convergence; three folds changes tuning support. Do not
-   report either as a numerically identical execution optimization. An alternative
-   preserving current splits is sharing identical training trajectories across
-   swapped outer/inner story pairs, with separate validation/stopping histories;
-   this also remains unimplemented and has no guaranteed twofold gain.
-4. Finish the execution/storage plan: compatible encoding reuse, compact indexed
-   trace outputs, all downstream geometry/statistics/reporting tasks, global
-   eight-GPU admission, organized arrays, safe resumption, and per-fit time/byte
-   accounting. Existing per-stage concurrency settings do not enforce that global
-   cap. Multiple array tasks each requesting a GPU do not share one allocation;
-   concurrent fits within one GPU require an explicit execution design.
-5. Verify exact optimizations against the reference on real inputs. For any
-   approved training change, verify its objective/weights and convergence
-   separately. Package once the integrated implementation is ready; the researcher
-   runs long verification, transfers it, and installs on allocated compute.
-6. Qualify complete representative fits and concurrent throughput on the cluster,
-   retaining eligible production work. Include tuning, refit, checkpoint/export
-   time, geometry, and final output sizes. Then set walltime/concurrency and launch
-   the full schedule using the measured budget. Several-day completion remains
-   an open engineering requirement until those measurements support it.
+1. Run the integrated local command in Windows CMD:
+   **call scripts\prepare_analysis.cmd**. It verifies the complete accepted
+   corpus, current protocol/numerics/recovery/inventory and packages the bundle.
+   A pre-existing ZIP is not evidence that this command passed.
+2. After success, transfer the new ZIP, installer, update helper and generated
+   transfer receipt. Inspect active project jobs first, then install only through
+   the allocated-node update helper. Reuse the existing analysis environment and
+   frozen model features. All paths remain in the project workspace.
+3. Run updated CUDA numerical qualification, then complete representative
+   production selection/refit and derived panels with the new manifest.
+   Inspect packing size, optimizer steps, epoch/validation/checkpoint/export time,
+   convergence, peak host/VRAM use and final bytes. Completed eligible outputs
+   remain production results; these are not substitute-data experiments.
+4. Set allocation walltimes from complete measured work and run organized arrays
+   under the shared eight-GPU admission cap. Several-day completion still needs
+   measured concurrent throughput. Independent-fit vectorization is an optional
+   subsequent optimization if batching leaves a demonstrated bottleneck; it is
+   not currently implemented and has no assumed speedup.
+5. Complete development reports and resolve scientific choices before explicitly
+   releasing the separate final manifest. Preserve old outputs/checkpoints under
+   their original identities; no broad deletion or automatic remote action occurred.
 
 ## Where the next engineer should look
 

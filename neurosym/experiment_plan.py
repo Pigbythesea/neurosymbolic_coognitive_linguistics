@@ -1,5 +1,6 @@
 """Resolve the scientific execution definitions without running or submitting fits."""
 from .analysis_runs import partition
+from .protocol import selection_partition
 from .encoding_support import comparison_spec
 from .io import object_hash, read_json
 
@@ -8,6 +9,15 @@ def experiment_plan(data):
     plan = read_json(data.root / "configs/experiments.json")
     if plan["format_version"] != 1 or plan["primary_layer"] != "final":
         raise ValueError("Unsupported experiment-definition version/layer policy.")
+    if plan.get('protocol_version') != 2 or data.config.get('protocol_version') != 2:
+        raise ValueError('Scientific definitions and analysis must both use protocol 2.')
+    cfg = data.config['decoder']
+    if cfg['selection_seed'] not in cfg['seeds'] or cfg['source_batch_size'] < 2:
+        raise ValueError('A declared tuning seed and multi-source execution are required.')
+    if plan['decoder']['primary_families'] != ['linear', 'mlp', 'structured'] or plan['decoder']['descriptive_families'] != ['linear']:
+        raise ValueError('Primary and descriptive readout policies differ from protocol 2.')
+    if cfg['selection_folds'] != 3 or data.config['encoding']['selection_folds'] != 3:
+        raise ValueError('Protocol 2 uses three whole-story selection folds.')
     if set(plan["subjects"]) != set(data.reader.contract["subjects"]):
         raise ValueError("Experiment participant panel differs from the data contract.")
     if plan["seeds"] != data.config["decoder"]["seeds"]:
@@ -16,7 +26,7 @@ def experiment_plan(data):
         raise ValueError("Experiment definitions omit or duplicate development folds.")
     if plan["final_fold"] != "final":
         raise ValueError("The final evaluation must retain the registered holdout.")
-    partitions = {fold: partition(data.semantics, fold) for fold in
+    partitions = {fold: selection_partition(data, {'fold': fold}) for fold in
                   plan["development_folds"] + [plan["final_fold"]] + plan["geometry"]["context_folds"]}
     if any("story_11" in s["train"] for s in partitions.values()):
         raise ValueError("Final story entered a training partition.")

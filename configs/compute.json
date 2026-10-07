@@ -4,21 +4,109 @@
   "qos": "jhu",
   "array_chunk": 500,
   "worker_fit_limit": 9,
-  "preparation": {"device": "cuda", "eigensolver": "cpu", "batch_sites": 16},
-  "execution": {"yield_reserve_seconds": 180, "initial_validation_minutes": 30,
-                "auto_verify_device": true, "poll_seconds": 30},
-  "storage": {"cache_gib": 128, "cache_entry_gib": 1, "minimum_free_gib": 16,
-              "host_reuse_gib": 4, "device_reuse_gib": 4, "raw_reuse_gib": 16,
-              "encoding_output": "response-operators-fp64"},
-  "documentation": {"checked": "2026-10-06", "partitions": "https://docs.arch.jhu.edu/en/latest/1_Clusters/Skipjack/2_Slurm/Partitions.html",
-                    "excluded_by_user": ["b200", "b300"], "notes": "h100 includes SXM and NVL. Planning requests; live availability and project quota remain user-inspected."},
+  "preparation": {
+    "device": "cuda",
+    "eigensolver": "cpu",
+    "batch_sites": 16
+  },
+  "execution": {
+    "yield_reserve_seconds": 180,
+    "initial_validation_minutes": 30,
+    "auto_verify_device": true,
+    "poll_seconds": 30,
+    "max_active_gpus": 8,
+    "max_active_cpu_workers": 8
+  },
+  "storage": {
+    "cache_gib": 128,
+    "cache_entry_gib": 1,
+    "minimum_free_gib": 16,
+    "host_reuse_gib": 4,
+    "device_reuse_gib": 4,
+    "raw_reuse_gib": 16,
+    "encoding_output": "response-operators-fp64"
+  },
+  "documentation": {
+    "checked": "2026-10-06",
+    "partitions": "https://docs.arch.jhu.edu/en/latest/1_Clusters/Skipjack/2_Slurm/Partitions.html",
+    "excluded_by_user": [
+      "b200",
+      "b300"
+    ],
+    "notes": "h100 includes SXM and NVL. Planning requests; live availability and project quota remain user-inspected."
+  },
   "resources": {
-    "prepare": {"partition": "med", "cpus": 17, "memory": "64G", "time": "01:00:00", "gpus": 0, "concurrency": 8},
-    "gpu-prepare": {"partition": "a100,h100,h200", "cpus": 11, "memory": "64G", "time": "01:00:00", "gpus": 1, "concurrency": 2},
-    "cpu-encoding": {"partition": "med", "cpus": 34, "memory": "128G", "time": "04:00:00", "gpus": 0, "concurrency": 8},
-    "gpu-encoding": {"partition": "a100,h100,h200", "cpus": 11, "memory": "64G", "time": "04:00:00", "gpus": 1, "concurrency": 4},
-    "cpu-prior": {"partition": "med", "cpus": 4, "memory": "12G", "time": "01:00:00", "gpus": 0, "concurrency": 8},
-    "cpu-decoder": {"partition": "med", "cpus": 9, "memory": "32G", "time": "04:00:00", "gpus": 0, "concurrency": 8},
-    "gpu-decoder": {"partition": "l40s,rtx6000,a100,h100,h200", "cpus": 6, "memory": "32G", "time": "00:30:00", "gpus": 1, "concurrency": 2}
+    "prepare": {
+      "partition": "med",
+      "cpus": 17,
+      "memory": "64G",
+      "time": "01:00:00",
+      "gpus": 0,
+      "concurrency": 8
+    },
+    "gpu-prepare": {
+      "partition": "a100,h100,h200",
+      "cpus": 11,
+      "memory": "64G",
+      "time": "01:00:00",
+      "gpus": 1,
+      "concurrency": 2
+    },
+    "cpu-encoding": {
+      "partition": "med",
+      "cpus": 34,
+      "memory": "128G",
+      "time": "04:00:00",
+      "gpus": 0,
+      "concurrency": 8
+    },
+    "gpu-encoding": {
+      "partition": "a100,h100,h200",
+      "cpus": 11,
+      "memory": "64G",
+      "time": "04:00:00",
+      "gpus": 1,
+      "concurrency": 4
+    },
+    "cpu-prior": {
+      "partition": "med",
+      "cpus": 4,
+      "memory": "12G",
+      "time": "01:00:00",
+      "gpus": 0,
+      "concurrency": 8
+    },
+    "cpu-decoder": {
+      "partition": "med",
+      "cpus": 9,
+      "memory": "32G",
+      "time": "04:00:00",
+      "gpus": 0,
+      "concurrency": 8
+    },
+    "gpu-decoder": {
+      "partition": "l40s,rtx6000,a100,h100,h200",
+      "cpus": 6,
+      "memory": "32G",
+      "time": "00:30:00",
+      "gpus": 1,
+      "concurrency": 8
+    },
+    "gpu-geometry": {
+      "partition": "a100,h100,h200",
+      "cpus": 11,
+      "memory": "64G",
+      "time": "00:30:00",
+      "gpus": 1,
+      "concurrency": 4
+    },
+    "cpu-report": {
+      "partition": "med",
+      "cpus": 4,
+      "memory": "12G",
+      "time": "00:30:00",
+      "gpus": 0,
+      "concurrency": 2
+    }
   }
 }

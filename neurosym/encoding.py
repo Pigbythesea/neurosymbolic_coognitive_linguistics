@@ -179,6 +179,14 @@ def response_matrix(data, subject, stories, masks, section):
     return values
 
 
+def validation_row_scale(masks, stories):
+    counts = [int(np.count_nonzero(masks[s])) for s in stories]
+    if not counts or min(counts) < 1:
+        raise ValueError('Every validation story needs observed response rows.')
+    total = sum(counts)
+    return np.concatenate([np.full(n, np.sqrt(total / (len(counts) * n))) for n in counts])
+
+
 def target_moments(data, subject, train, validation, masks, batch, *, device='cpu', return_device=False):
     """Exact all-voxel normalized-MSE tuning through sufficient statistics.
 
@@ -187,6 +195,7 @@ def target_moments(data, subject, train, validation, masks, batch, *, device='cp
     """
     n, m = sum(masks[s].sum() for s in train), sum(masks[s].sum() for s in validation)
     math = FP64(device)
+    row_scale = math.array(validation_row_scale(masks, validation))[:, None]
     gram, cross, total, count = math.array(np.zeros((n, n))), math.array(np.zeros((n, m))), 0.0, 0
     voxels = data.reader.contract["subjects"][subject][train[0]]["voxels"]
     for start in range(0, voxels, batch):
@@ -198,12 +207,14 @@ def target_moments(data, subject, train, validation, masks, batch, *, device='cp
             mean, scale = dy.mean(0), dy.std(0, correction=0)
             use = scale > 1e-8
             dy, dz = (dy[:, use] - mean[use]) / scale[use], (dz[:, use] - mean[use]) / scale[use]
+            dz = dz * row_scale
             total = total + (dz * dz).sum()
             count += dy.shape[1]
         else:
             mean, scale = y.mean(0), y.std(0)
             use = scale > 1e-8
             dy, dz = (y[:, use] - mean[use]) / scale[use], (z[:, use] - mean[use]) / scale[use]
+            dz = dz * row_scale
             total += float(np.sum(dz * dz))
             count += int(use.sum())
         gram += dy @ dy.T
@@ -237,6 +248,7 @@ def fold_kernels(data, options, fold, support, math):
             z, _ = factory.assemble(fold['validation'])
             scaler = GroupScaler().fit(x)
             tx, vz = scaler.transform(x)[group], scaler.transform(z)[group]
+            vz = vz * validation_row_scale(masks, fold['validation'])[:, None]
             return {'train': tx, 'validation': vz}
         identities[group] = identity
         designs[group] = data.host_cache.get(('encoding-design', object_hash(identity)), build)
@@ -297,9 +309,8 @@ def spectral_losses(spectral, moments, alphas, math, *, primal):
 def select_encoding(data, options, split, support):
     cfg, groups = data.config["encoding"], options["groups"]
     math = FP64(options.get('device', 'cpu'))
-    mixtures = [np.ones(len(groups)) / len(groups)]
-    if len(groups) > 1:
-        mixtures.extend(np.random.default_rng(options["seed"]).dirichlet(np.ones(len(groups)), cfg["group_mixtures"]))
+    from .protocol import encoding_mixtures
+    mixtures = encoding_mixtures(cfg, groups)
     grid = [{"alpha": float(a), "weights": dict(zip(groups, w.tolist(), strict=True))}
             for w in mixtures for a in cfg["alphas"]]
     scores = [[] for _ in grid]
@@ -325,14 +336,15 @@ def select_encoding(data, options, split, support):
         for slot, value in zip(scores, values, strict=True):
             slot.append(float(value))
         print(f"ENCODING SELECT inner={inner_index + 1}/{len(split['inner'])}", flush=True)
-    means = [float(np.mean(s)) for s in scores]
+    means = [float(np.average(s, weights=[len(f['validation']) for f in split['inner']])) for s in scores]
     best = int(np.argmin(means))
     return grid[best], {"criterion": "story-macro MSE normalized by training-only voxel variance; all variable native voxels",
                         "grid": grid, "inner_scores": scores, "mean_loss": means, "selected": best}
 
 
 def encoding_context(data, options):
-    split = partition(data.semantics, options["fold"])
+    from .protocol import selection_partition
+    split = selection_partition(data, options, decoder=False)
     data.validate_partition(split["train"], test=split["test"])
     spec = comparison_spec(data.config, options)
     options = {**options, "comparison_support": spec}

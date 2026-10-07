@@ -67,7 +67,7 @@ def composition_partition(dataset, split, keys):
     return result
 
 
-ANALYSIS_MODULES = ["analysis_runs.py", "analysis_data.py", "decoders.py", "decoder_fit.py", "decoder_batch.py",
+ANALYSIS_MODULES = ["analysis_runs.py", "analysis_data.py", "decoders.py", "decoder_fit.py", "decoder_batch.py", "decoder_minibatch.py", "protocol.py", "study_jobs.py", "study_reports.py", "grounding_checks.py",
                "encoding.py", "encoding_support.py", "geometry.py", "spatial.py", "semantic_features.py",
                "semantic_queries.py", "dataset.py", "model_features.py", "temporal.py", "reviewed_queries.py",
                "reviewed_graph.py", "reviewed_archive.py", "reviewed_compile.py", "compute.py", "storage.py", "execution.py", "pca.py", "runtime.py"]

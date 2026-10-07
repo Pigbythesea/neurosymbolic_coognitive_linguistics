@@ -1,8 +1,7 @@
 """Concrete preparation/fit jobs with pinned inputs and dependency receipts.
 
-The manifest covers the expensive fitted parents for the declared program.
-Geometry/comparison commands consume their recorded output paths; generating
-this manifest neither submits jobs nor evaluates the final story.
+The manifest covers fitted parents, geometry, comparisons and study reports.
+Generating it neither submits jobs nor evaluates the final story.
 """
 from pathlib import Path
 
@@ -78,50 +77,8 @@ def execution_manifest(data, *, phase='development', encoding_device='cuda', dec
         jobs.append(job)
         return key
 
-    # One CPU allocation per fold/seed processes all prior conditions. Its
-    # identical fits are shared by the validated query-only fit cache.
-    for fold in main_folds:
-        for seed in plan['seeds']:
-            conditions = [{**obs, 'fold': fold, 'seed': seed, 'family': 'prior', 'device': 'cpu'}
-                          for obs in observations]
-            add('prior-panel', {'conditions': conditions}, 'cpu-prior', purpose='all observation panels, shared query-only fits')
-
-    for obs in observations:
-        for fold in main_folds + contexts:
-            prep_device = resources['preparation']['device']
-            prep = add('prepare-decoder', {**obs, 'fold': fold, 'seed': plan['seeds'][0], 'device': prep_device},
-                       'gpu-prepare' if prep_device == 'cuda' else 'prepare')
-            families = [f for f in plan['decoder']['families'] if f != 'prior'] if fold in main_folds else [plan['geometry']['primary_decoder_parent']]
-            for seed in plan['seeds']:
-                for family in families:
-                    base = {**obs, 'fold': fold, 'seed': seed, 'family': family,
-                            'device': decoder_device, 'require_prepared': True}
-                    add('decoder', base, ('gpu-' if decoder_device == 'cuda' else 'cpu-') + 'decoder', [prep])
-                    if fold in main_folds and family in plan['decoder']['retrained_null_families']:
-                        add('decoder', {**base, 'retrain_null': True},
-                            ('gpu-' if decoder_device == 'cuda' else 'cpu-') + 'decoder', [prep])
-
-    enc_resource = ('gpu-' if encoding_device == 'cuda' else 'cpu-') + 'encoding'
-    for subject in plan['subjects']:
-        for fold in main_folds + contexts:
-            for seed in plan['seeds']:
-                for contrast in plan['encoding_contrasts']:
-                    if fold in contexts and contrast['comparison'] != 'matched-binding':
-                        continue
-                    for side in (['augmented'] if fold in contexts else ['baseline', 'augmented']):
-                        add('encoding', {'subject': subject, 'fold': fold, 'seed': seed,
-                            'groups': contrast[side], 'comparison': contrast['comparison'], 'device': encoding_device}, enc_resource)
-                if fold in contexts:
-                    continue
-                for model in resolved['models']:
-                    for layer in model['descriptive_layers']:
-                        for groups in plan['model_encoding']['conditions']:
-                            options = {'subject': subject, 'fold': fold, 'seed': seed, 'groups': groups,
-                                'comparison': plan['model_encoding']['comparison'], 'device': encoding_device,
-                                'mask_models': [model['id'] + ':' + str(layer)]}
-                            if 'model' in groups:
-                                options.update(model=model['id'], layer=layer)
-                            add('encoding', options, enc_resource)
+    from .study_jobs import populate_jobs
+    populate_jobs(data, resolved, resources, phase, encoding_device, decoder_device, add)
     counts = {}
     encoding_arrays_bytes, compact_bytes = 0, 0
     for job in jobs:
@@ -149,8 +106,8 @@ def execution_manifest(data, *, phase='development', encoding_device='cuda', dec
                 'encoding_operator_and_metric_full_rows_bytes_before_sharing': compact_bytes,
                 'cache_limit_bytes': resources['storage']['cache_gib'] * 2**30,
                 'meaning': 'Full-row uncompressed array ceilings before comparison masks, compression and exact-fit sharing. Excludes decoder weights/traces, geometry and metadata; not an estimate of total disk use.'},
-            'scope': 'Preparation and fitted parents, including declared descriptive layers and multistory geometry parents.',
-            'seed_policy': 'All configured seeds retained for decoding and the randomized encoding search.',
+            'scope': 'Primary final-layer fits, descriptive profiles, geometry, comparisons and study reporting.',
+            'seed_policy': 'Three primary decoder refits share selection; descriptive linear seed 11; one deterministic encoding search union.',
             'final_release': 'Final jobs require a separate final manifest and explicit --allow-final.'}
     return {**body, 'content_hash': object_hash(body)}
 
@@ -229,7 +186,7 @@ def ensure_device(data, manifest, device):
 
 def run_jobs(root, manifest_path, indices, *, allow_final=False):
     from .analysis_data import AnalysisData
-    from .decoder_fit import prepare_decoder, run_decoder
+    from .decoder_fit import prepare_decoder, run_decoder, select_decoder
     from .encoding import prepare_encoding_panel, run_encoding
     manifest = read_json(Path(manifest_path))
     digest = manifest['content_hash']
@@ -243,7 +200,7 @@ def run_jobs(root, manifest_path, indices, *, allow_final=False):
     if len({(j['kind'], j['resource']) for j in jobs}) != 1:
         raise ValueError('A worker must have one preparation/fit kind and resource.')
     worker_timings = Timings()
-    data = AnalysisData(root, build=Path(root) / manifest['build'], require_prepared=jobs[0]['kind'] == 'decoder')
+    data = AnalysisData(root, build=Path(root) / manifest['build'], require_prepared=jobs[0]['kind'] in {'decoder', 'select-decoder'})
     plan = experiment_plan(data)
     if (data.config != manifest['analysis_config'] or code_identity() != manifest['code'] or
             data.compute_config != manifest['resources'] or
@@ -303,12 +260,15 @@ def run_jobs(root, manifest_path, indices, *, allow_final=False):
                 paths = [prepare_decoder(data, job['options'])]
             elif job['kind'] == 'encoding':
                 paths = [run_encoding(data, job['options'])]
+            elif job['kind'] == 'select-decoder':
+                paths = [select_decoder(data, job['options'])]
             elif job['kind'] == 'decoder':
                 paths = [run_decoder(data, job['options'])]
             elif job['kind'] == 'prior-panel':
                 paths = [run_decoder(data, options) for options in job['options']['conditions']]
             else:
-                raise ValueError('Unknown manifest job kind.')
+                from .study_reports import run_derived
+                paths = [run_derived(data, job, manifest, directory)]
             write_report(destination, {'status': 'complete', 'manifest_hash': digest, 'job_id': job['id'],
                 'results': [p.relative_to(root).as_posix() for p in paths]})
         completed.append(destination)

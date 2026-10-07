@@ -1,6 +1,6 @@
 # Scientific measurements and execution definitions
 
-This records the implementation-branch decisions of 2026-10-06. The primary
+This records the measurement definitions, updated for protocol 2 on 2026-10-07. The primary
 scientific scope is consolidated in [SCIENTIFIC_STATUS_HANDOFF.md](SCIENTIFIC_STATUS_HANDOFF.md): concepts,
 binding, reference, scope and discourse in human recordings and frozen model
 states, studied through encoding, decoding and representational geometry.
@@ -97,6 +97,25 @@ address learning under disrupted observation/target pairing. All controls keep
 the registered task and candidate definitions. Per-task accuracy, chance,
 accuracy minus chance and NLL accompany story summaries. Seeds/repeats do not
 increase the participant count.
+
+Protocol 2 applies the full readout/control panel to the nine humans and five
+final-layer model observations. Intermediate layers use fixed linear probes
+(seed 11), native geometry and encoding profiles. Three whole-story inner
+folds select nonlinear settings once at seed 11 for each outer condition;
+refits at seeds 11/29/47 share those settings. Linear probes use 20 epochs at
+0.0003. Structured nulls reuse matched settings and are explicitly fixed-procedure
+correspondence ablations. Encoding uses one union of 25 weight candidates
+(equal weights plus eight draws each from seeds 11/29/47), not three replications.
+Decoder minibatches contain 16 sources and optimize the declared normalized
+story/source-weighted objective. These changes alter selection/training protocol;
+they do not claim identical old AdamW trajectories.
+
+Heldout primary structured fits compare query-route-selected site replacement
+against equal-count random sites using the same nonoverlapping donor. Context
+parents retain full traces for anatomical stability and the three learned
+geometry views. Source co-occurrence geometry and actual semantic-support
+reports accompany the comparison panels. These are decoder-reliance and
+conditional-geometry controls, not biological interventions or full confound removal.
 
 Ordinary outer-fold geometries describe a heldout story. Context stability uses
 two additional fixed development partitions, holding out stories 01–05 and

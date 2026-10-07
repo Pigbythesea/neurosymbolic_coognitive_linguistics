@@ -69,6 +69,24 @@ def ready_workers(manifest, completed, occupied, allowed):
     return ready
 
 
+def other_allocations(root, current, active):
+    """Count outstanding tasks from other project manifests under one lock."""
+    gpu, cpu = 0, 0
+    for path in (root / 'artifacts/submissions').glob('*/dispatch.json'):
+        if path == current:
+            continue
+        ledger = json.loads(path.read_text())
+        for attempt in ledger['attempts']:
+            if attempt['state'] == 'submitting':
+                raise RuntimeError('Reconcile uncertain submission before dispatch: ' + str(path))
+            if attempt.get('task_id') in active:
+                if any(c.startswith('--gres=gpu:') for c in attempt['command']):
+                    gpu += 1
+                else:
+                    cpu += 1
+    return gpu, cpu
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('manifest', type=Path)
@@ -109,7 +127,7 @@ def main():
     directory = root / 'artifacts/submissions' / manifest['content_hash']
     directory.mkdir(parents=True, exist_ok=args.resume)
     import fcntl
-    with (directory / 'controller.oslock').open('a+b') as lock:
+    with (root / 'artifacts/submissions/controller.oslock').open('a+b') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         dispatch(args, manifest, root, directory, allowed, profiles, reserve)
 
@@ -198,9 +216,17 @@ def dispatch(args, manifest, root, directory, allowed, profiles, reserve):
             return
         ready = ready_workers(manifest, completed, occupied, allowed)
         submitted = 0
+        active_gpus = sum(counts[r] * profiles[r]['gpus'] for r in counts)
+        active_cpu = sum(counts[r] for r in counts if not profiles[r]['gpus'])
+        other_gpu, other_cpu = other_allocations(root, ledger_path, active)
+        active_gpus += other_gpu
+        active_cpu += other_cpu
+        gpu_limit = manifest['resources']['execution']['max_active_gpus']
+        cpu_limit = manifest['resources']['execution']['max_active_cpu_workers']
         for resource, candidates in ready.items():
             p = profiles[resource]
-            selected = candidates[:max(0, p['concurrency'] - counts[resource])]
+            remaining = gpu_limit - active_gpus if p['gpus'] else cpu_limit - active_cpu
+            selected = candidates[:max(0, min(p['concurrency'] - counts[resource], remaining))]
             if not selected:
                 continue
             token, wall = uuid.uuid4().hex, args.time or p['time']
@@ -231,11 +257,15 @@ def dispatch(args, manifest, root, directory, allowed, profiles, reserve):
                 attempt.update(state='submitted', task_id=job + '_' + str(slot))
             write_json(ledger_path, ledger)
             submitted += len(selected)
+            if p['gpus']:
+                active_gpus += len(selected)
+            else:
+                active_cpu += len(selected)
             print('SUBMITTED', resource, job, 'workers=', selected, 'walltime=', wall, flush=True)
         if not args.watch:
             print('Wave dispatched. Continue with --submit --resume; add --watch for ongoing dispatch on an allocated node.')
             return
-        if not submitted and not occupied:
+        if not submitted and not occupied and not (other_gpu or other_cpu):
             raise RuntimeError('Selected workers await preparation outside this selection; include those dependencies.')
         time.sleep(manifest['resources']['execution']['poll_seconds'])
 

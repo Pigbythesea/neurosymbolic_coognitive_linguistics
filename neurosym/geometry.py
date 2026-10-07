@@ -152,11 +152,12 @@ def semantic_occurrences(data, stories, kind, *, reviewed_only=False, scope_mode
     return records
 
 
-def summarize_geometry(records, vectors, directory, *, min_stories=2, device='cpu'):
+def summarize_geometry(records, vectors, directory, *, min_stories=2, device='cpu',
+                       retain_signatures=True, retain_story_means=True):
     """One occurrence per source/item, then equal story means, never question counts."""
     if min_stories < 1:
         raise ValueError("Positive minimum context support required.")
-    cells, labels, counts = defaultdict(list), {}, defaultdict(int)
+    cells, cell_counts, labels, counts = {}, defaultdict(int), {}, defaultdict(int)
     for record in records:
         key = (record["source_id"], record["item_id"])
         if key not in vectors:
@@ -164,14 +165,25 @@ def summarize_geometry(records, vectors, directory, *, min_stories=2, device='cp
         vector = np.asarray(vectors[key], dtype=np.float64)
         if vector.ndim != 1 or not np.isfinite(vector).all():
             raise ValueError("Signature coordinates must be finite and one-dimensional.")
-        cells[(record["item_id"], record["story_id"])].append(vector)
+        cell = (record['item_id'], record['story_id'])
+        if cell not in cells:
+            cells[cell] = vector.copy()
+        else:
+            cells[cell] += vector
+        cell_counts[cell] += 1
         labels[record["item_id"]] = record["label"]
         counts[record["item_id"]] += 1
-    story_means = {key: np.mean(values, axis=0) for key, values in cells.items()}
+    story_means = {key: values / cell_counts[key] for key, values in cells.items()}
+    # Release sums before constructing high-dimensional mean signatures.
+    cells = {key: None for key in cells}
     contexts = {item: sorted(story for key, story in cells if key == item) for item in labels}
     items = sorted(item for item in labels if len(contexts[item]) >= min_stories)
     if not items:
-        raise ValueError("No real semantic items satisfy the requested independent-story support.")
+        report = {'available': False, 'reason': 'No semantic items meet independent-story support.',
+                  'minimum_stories': min_stories, 'candidate_items': len(labels), 'items': [],
+                  'source_counts': dict(counts), 'contexts': contexts}
+        write_report(Path(directory) / 'geometry.json', report)
+        return report
     signatures = np.stack([np.mean([story_means[(item, s)] for s in contexts[item]], axis=0) for item in items])
     rdm, valid, norms = cosine_rdm(signatures, device=device)
     reliability = {"available": False, "reason": "Too few items shared across independent story halves."}
@@ -194,14 +206,17 @@ def summarize_geometry(records, vectors, directory, *, min_stories=2, device='cp
     directory.mkdir(parents=True, exist_ok=True)
     with h5py.File(directory / "geometry.h5", "w") as file:
         file.attrs["complete"] = False
-        file.create_dataset("signatures", data=signatures.astype(np.float32), compression="lzf")
+        if retain_signatures:
+            file.create_dataset("signatures", data=signatures.astype(np.float32), compression="lzf")
         file.create_dataset("rdm", data=rdm)
         file.create_dataset("valid", data=valid)
         file.create_dataset("norms", data=norms)
-        for item, story in sorted(story_means):
-            file.create_dataset("story_means/" + item + "/" + story, data=story_means[(item, story)].astype(np.float32), compression="lzf")
+        if retain_story_means:
+            for item, story in sorted(story_means):
+                file.create_dataset("story_means/" + item + "/" + story, data=story_means[(item, story)].astype(np.float32), compression="lzf")
         file.attrs["complete"] = True
-    report = {"items": items, "labels": {i: labels[i] for i in items},
+    report = {"available": True, "items": items, "labels": {i: labels[i] for i in items},
+              'stored_signatures': retain_signatures, 'stored_story_means': retain_story_means,
               "source_counts": {i: counts[i] for i in items}, "contexts": {i: contexts[i] for i in items},
               "minimum_stories": min_stories, "zero_norm_items": [i for i, ok in zip(items, valid, strict=True) if not ok],
               "available_source_item_pairs": len(vectors), "requested_source_item_pairs": len(records),
@@ -442,7 +457,7 @@ def run_geometry(data, options):
                                    scope_mode=options.get("scope_mode", "pooled"))
     if options["view"] == "grounding" and options["kind"] == "configuration":
         raise ValueError("Whole configurations have native/latent/encoding-implied geometries; their ordered role maps are separate grounding items.")
-    if options["view"] != "native":
+    if options["view"] not in {"native", "cooccurrence"}:
         parent = Path(options["from_run"])
         receipt = read_json(parent / "complete.json")
         if (receipt["identity"]["semantic_build_hash"] != data.semantics.build_hash or
@@ -464,7 +479,15 @@ def run_geometry(data, options):
     with exclusive_run(directory / "RUNNING.lock"):
         if (directory / "complete.json").exists():
             return directory
-        if options["view"] == "native":
+        if options['view'] == 'cooccurrence':
+            source_ids = sorted({r['source_id'] for r in records})
+            positions = {s: i for i, s in enumerate(source_ids)}
+            vectors = {}
+            for r in records:
+                value = np.zeros(len(source_ids), dtype=np.float32)
+                value[positions[r['source_id']]] = 1
+                vectors[(r['source_id'], r['item_id'])] = value
+        elif options["view"] == "native":
             native_identity = {'source': data.cache_identity(options.get('model')), 'split': split,
                 'code': file_hash(Path(__file__)),
                 'options': {k: options.get(k) for k in ('modality', 'subject', 'model', 'layer', 'residualize_presentation')}}
@@ -497,7 +520,8 @@ def run_geometry(data, options):
             vectors = {(r["source_id"], r["item_id"]): sources[r["source_id"]] for r in records if r["source_id"] in sources}
         else:
             raise ValueError("Unknown geometry family.")
-        report = summarize_geometry(records, vectors, directory, min_stories=options["min_stories"], device=options.get('device', 'cpu'))
+        report = summarize_geometry(records, vectors, directory, min_stories=options["min_stories"], device=options.get('device', 'cpu'),
+            retain_signatures=options.get('retain_signatures', True), retain_story_means=options.get('retain_story_means', True))
         write_report(directory / "scope-coverage.json", {"mode": options.get("scope_mode", "pooled"),
             "occurrences": [{"source_id": r["source_id"], "item_id": r["item_id"], "scope_observations": r["scope_observations"]}
                             for r in records],
@@ -528,9 +552,13 @@ def compare_geometry(first, second, *, permutations=10000, seed=11, device='cpu'
     if a["partition"]["test"] != b["partition"]["test"]:
         raise ValueError("Compare the same observed heldout stories.")
     am, bm = read_json(first / "geometry.json"), read_json(second / "geometry.json")
+    if not am.get('available', True) or not bm.get('available', True):
+        return {'available': False, 'reason': 'One parent has insufficient semantic support.'}
     with h5py.File(first / "geometry.h5", "r") as af, h5py.File(second / "geometry.h5", "r") as bf:
         common = sorted(set(i for i, ok in zip(am["items"], af["valid"][()], strict=True) if ok) &
                         set(i for i, ok in zip(bm["items"], bf["valid"][()], strict=True) if ok))
+        if len(common) < 3:
+            return {'available': False, 'reason': 'Fewer than three shared nonzero items.', 'common_items': common}
         ai, bi = [am["items"].index(i) for i in common], [bm["items"].index(i) for i in common]
         result = rdm_comparison(af["rdm"][()][np.ix_(ai, ai)], bf["rdm"][()][np.ix_(bi, bi)], permutations=permutations, seed=seed, device=device)
     return {"first": object_hash(a["identity"]), "second": object_hash(b["identity"]), "common_items": common,
@@ -568,13 +596,15 @@ def grounding_stability(first, second, *, permutations=10000, seed=11, device='c
     if receipts[0]["identity"]["semantic_build_hash"] != receipts[1]["identity"]["semantic_build_hash"]:
         raise ValueError("Map labels belong to different semantic snapshots.")
     metadata = [read_json(p / "geometry.json") for p in (first, second)]
+    if any(not m.get('available', True) for m in metadata):
+        return {'available': False, 'reason': 'Insufficient semantic support in a grounding parent.'}
     coordinates = [read_json(p / "coordinates.json") for p in (first, second)]
     if coordinates[0]["layout"] != coordinates[1]["layout"]:
         raise ValueError("Cannot compare unary maps with ordered pair maps.")
     sites = sorted(set(coordinates[0]["sites"]) & set(coordinates[1]["sites"]))
     items = sorted(set(metadata[0]["items"]) & set(metadata[1]["items"]))
     if len(sites) < 3 or len(items) < 3:
-        raise ValueError("Map stability needs at least three common sites and semantic items.")
+        return {'available': False, 'reason': 'Fewer than three shared sites or semantic items.'}
     matrices = []
     pairwise = coordinates[0]["layout"].startswith("ordered")
     for p, meta, coords in zip((first, second), metadata, coordinates, strict=True):
@@ -590,7 +620,7 @@ def grounding_stability(first, second, *, permutations=10000, seed=11, device='c
     norms = [np.linalg.norm(v, axis=1) for v in matrices]
     valid = (norms[0] > 1e-12) & (norms[1] > 1e-12)
     if valid.sum() < 3:
-        raise ValueError("Insufficient variable common maps.")
+        return {'available': False, 'reason': 'Fewer than three variable common maps.'}
     a, b = [v[valid] / n[valid, None] for v, n in zip(matrices, norms, strict=True)]
     correlations, observed, pvalue = map_label_permutation(a, b, permutations=permutations, seed=seed, device=device)
     return {"common_sites": sites, "items": [i for i, ok in zip(items, valid, strict=True) if ok],

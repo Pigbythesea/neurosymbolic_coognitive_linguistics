@@ -141,6 +141,191 @@ def verify_source_batches(examples, windows, projector, *, device):
     return errors
 
 
+def verify_cross_source_batches(examples, windows, projector, *, device):
+    """Compare the declared macro objective with scalar real-query execution."""
+    from collections import Counter, defaultdict
+    from neurosym.decoder_fit import device_windows
+    from neurosym.decoder_minibatch import PackedBatches
+    groups = defaultdict(list)
+    for e in examples:
+        groups[e['source_id']].append(e)
+    counts = Counter(q[0]['story_id'] for q in groups.values())
+    errors = {}
+    for family in ('prior', 'linear', 'mlp', 'structured'):
+        torch.manual_seed(11)
+        reference = SemanticDecoder(family, (8, 4, 3), query_vocabulary(examples), hidden=16,
+                                    site_mask=projector.site_mask).to(device)
+        reference.source_batched = False
+        candidate = copy.deepcopy(reference)
+        candidate.source_batched = True
+        staged = None if family == 'prior' else device_windows(windows, device)
+        # Size 4 exercises different observations and an incomplete last batch.
+        packed = PackedBatches(candidate, examples, staged, size=4)
+        expected_logits, reference_loss = {}, 0.
+        for source, queries in groups.items():
+            reference.descriptors.begin_source()
+            observed = reference.encode_observation(None if family == 'prior' else staged[source][0])
+            source_loss = 0.
+            for e in queries:
+                logits = reference.answer(observed, e['inputs'])[0]
+                expected_logits[e['query_id']] = logits.detach().cpu().numpy()
+                source_loss = source_loss + e['weight'] * acceptable_loss(logits, e['acceptable_indices'])
+            source_loss = source_loss / (sum(e['weight'] for e in queries) * counts[queries[0]['story_id']] * len(counts))
+            reference_loss += float(source_loss.detach().cpu())
+            source_loss.backward()
+            reference.descriptors.end_source()
+            reference.end_observation()
+        maximum, candidate_loss = 0., 0.
+        for index in range(len(packed.batches)):
+            logits, targets, weights, rows = packed.logits(candidate, index)
+            for row, (e, _, _) in zip(logits, rows, strict=True):
+                expected = expected_logits[e['query_id']]
+                maximum = max(maximum, close(expected, row[:len(expected)].detach().cpu().numpy(), atol=3e-5, rtol=3e-5))
+                if not torch.isneginf(row[len(expected):]).all():
+                    raise AssertionError('Multi-source padding changes candidate support.')
+            loss = (choice_losses(logits, targets) * weights).sum() / len(packed.batches)
+            candidate_loss += float(loss.detach().cpu())
+            loss.backward()
+        loss_error = close(np.asarray(reference_loss), np.asarray(candidate_loss), atol=3e-5, rtol=3e-5)
+        gradient_error = 0.
+        for (name, a), (other, b) in zip(reference.named_parameters(), candidate.named_parameters(), strict=True):
+            if name != other or (a.grad is None) != (b.grad is None):
+                raise AssertionError('Multi-source gradient support changed: ' + name)
+            if a.grad is not None:
+                gradient_error = max(gradient_error, close(a.grad.cpu().numpy(), b.grad.cpu().numpy(), atol=5e-5, rtol=5e-5))
+        close(np.asarray(reference_loss), np.asarray(packed.validation_loss(candidate)), atol=3e-5, rtol=3e-5)
+        errors[family] = {'logit_max_error': maximum, 'macro_loss_error': loss_error, 'gradient_max_error': gradient_error,
+                          'sources': len(groups), 'batches': len(packed.batches)}
+    return errors
+
+
+def verify_protocol(data, manifest):
+    from collections import Counter
+    from neurosym.protocol import selection_partition, selection_options, encoding_mixtures
+    from neurosym.experiment_plan import experiment_plan
+    plan = experiment_plan(data)
+    for name, split in plan['partitions'].items():
+        validation = [s for fold in split['inner'] for s in fold['validation']]
+        if len(split['inner']) != 3 or sorted(validation) != sorted(split['train']) or set(split['train']) & set(split['test']):
+            raise AssertionError('Whole-story selection coverage changed: ' + name)
+        for fold in split['inner']:
+            if set(fold['train']) & set(fold['validation']) or set(fold['train'] + fold['validation']) != set(split['train']):
+                raise AssertionError('An inner fold leaks or omits stories.')
+    for j in manifest['jobs']:
+        if j['kind'] != 'decoder':
+            continue
+        o = j['options']
+        a = selection_options(data, o)
+        b = selection_options(data, {**o, 'seed': 47, 'retrain_null': True})
+        if a != b:
+            raise AssertionError('Evaluation seed/null receives different selection settings.')
+        expected = {'kind': 'select-decoder', 'options': {**a}}
+        if o.get('require_prepared'):
+            expected['options']['require_prepared'] = True
+        if object_hash(expected) not in j['dependencies']:
+            raise AssertionError('Missing canonical selection dependency.')
+        if o.get('model'):
+            model = next(m for m in plan['models'] if m['id'] == o['model'])
+            if o['layer'] != model['primary_layer'] and (o['family'] != 'linear' or o['seed'] != 11 or o.get('retrain_null')):
+                raise AssertionError('Expensive decoder grid expanded into descriptive layers.')
+        if o.get('export_traces') and (o['family'] != 'structured' or not o['fold'].startswith('stories:')):
+            raise AssertionError('Unused dense traces entered the execution inventory.')
+    weights = encoding_mixtures(data.config['encoding'], ['presentation', 'C', 'BC'])
+    if len(weights) != 25 or not np.allclose(np.sum(weights, axis=1), 1):
+        raise AssertionError('Encoding search union lost candidates or normalization.')
+    # Validate a DAG, not just that every dependency name exists.
+    available = set()
+    pending = {j['id']: set(j['dependencies']) for j in manifest['jobs']}
+    while pending:
+        ready = {k for k, dependencies in pending.items() if dependencies <= available}
+        if not ready:
+            raise AssertionError('Execution graph has a cycle or missing parent.')
+        available.update(ready)
+        for key in ready:
+            del pending[key]
+    reports = [j for j in manifest['jobs'] if j['kind'] == 'study-report']
+    if len(reports) != 1 or any(j['id'] not in reports[0]['dependencies'] for j in manifest['jobs']
+                               if j['kind'] in {'decoder', 'encoding', 'compare-geometry-panel', 'semantic-coverage'}):
+        raise AssertionError('Study reporting omits declared results.')
+    return {'counts_by_kind': dict(Counter(j['kind'] for j in manifest['jobs'])),
+            'selection_folds': 3, 'encoding_weight_candidates': len(weights), 'dag_verified': True}
+
+
+def verify_exports(data, projector, *, device):
+    """Recovery checks on two complete real sources and released text arrays."""
+    from neurosym.grounding_checks import faithfulness
+    sources = {s['id']: s for s in data.semantics.records('story_01', 'sources')
+               if s['decoder_timing_eligible'] and s['raw_feature_bin'] >= 4}
+    ordered = sorted(sources, key=lambda k: sources[k]['raw_feature_bin'])
+    selected = {key: sources[key] for key in (ordered[0], ordered[-1])}
+    examples = [e for e in data.examples('story_01') if e['source_id'] in selected]
+    values = projector.transform(data.reader.features('story_01', ['english1000'], trim=False)['english1000'])
+    windows = {key: values[s['raw_feature_bin']-4:s['raw_feature_bin']].transpose(1, 0, 2)[None] for key, s in selected.items()}
+    torch.manual_seed(11)
+    model = SemanticDecoder('structured', (8, 4, 3), query_vocabulary(examples), hidden=16,
+                            site_mask=projector.site_mask).to(device)
+    def interrupt():
+        raise YieldRequested('Intentional real-source export recovery check.')
+    with tempfile.TemporaryDirectory(dir=data.root / 'artifacts') as temporary:
+        path = Path(temporary)
+        with h5py.File(path / 'traces.h5', 'a') as file:
+            try:
+                with patch.object(deadline, 'check', side_effect=interrupt):
+                    evaluate(model, examples, windows, trace_file=file)
+            except YieldRequested:
+                pass
+            recovered = evaluate(model, examples, windows, trace_file=file)
+            repeated = evaluate(model, examples, windows, trace_file=file)
+            if recovered != repeated:
+                raise AssertionError('Saved trace predictions differ on recovery.')
+        reference = evaluate(model, examples, windows)
+        by_id = {(r['query_id'], r['repeat']): r for r in reference}
+        for row in recovered:
+            close(np.asarray(row['probabilities']), np.asarray(by_id[row['query_id'], row['repeat']]['probabilities']), atol=3e-5, rtol=3e-5)
+        original = faithfulness(model, examples, windows, selected, fraction=.1, seed=11)
+        checkpoint = path / 'faithfulness.json'
+        try:
+            with patch.object(deadline, 'due', return_value=True), patch.object(deadline, 'check', side_effect=interrupt):
+                faithfulness(model, examples, windows, selected, fraction=.1, seed=11, checkpoint=checkpoint)
+        except YieldRequested:
+            pass
+        resumed = faithfulness(model, examples, windows, selected, fraction=.1, seed=11, checkpoint=checkpoint)
+        if original != resumed:
+            raise AssertionError('Faithfulness masks/metrics changed after continuation.')
+    return {'actual_sources': list(selected), 'queries': len(examples), 'trace_and_faithfulness_recovery': True}
+
+
+def verify_geometry_storage(data, examples, windows, *, device):
+    from collections import defaultdict
+    from neurosym.geometry import semantic_occurrences, summarize_geometry
+    from neurosym.io import read_json
+    records = semantic_occurrences(data, sorted({e['story_id'] for e in examples}), 'concept')
+    vectors = {(r['source_id'], r['item_id']): windows[r['source_id']].mean(0).reshape(-1)
+               for r in records if r['source_id'] in windows}
+    cells = defaultdict(list)
+    for r in records:
+        key = (r['source_id'], r['item_id'])
+        if key in vectors:
+            cells[r['item_id'], r['story_id']].append(vectors[key].astype(np.float64))
+    with tempfile.TemporaryDirectory(dir=data.root / 'artifacts') as temporary:
+        path = Path(temporary)
+        report = summarize_geometry(records, vectors, path, min_stories=1, device=device)
+        if not report['available']:
+            raise AssertionError('Real-source geometry verification has no supported concepts.')
+        expected = np.stack([np.mean([np.mean(values, axis=0) for (item, _), values in cells.items() if item == key], axis=0)
+                             for key in report['items']])
+        with h5py.File(path / 'geometry.h5', 'r') as file:
+            close(expected.astype(np.float32), file['signatures'][()], atol=1e-7, rtol=1e-7)
+            rdm = file['rdm'][()]
+        summarize_geometry(records, vectors, path, min_stories=1, device=device,
+                           retain_signatures=False, retain_story_means=False)
+        with h5py.File(path / 'geometry.h5', 'r') as file:
+            if 'signatures' in file or 'story_means' in file:
+                raise AssertionError('Compact geometry retained redundant wide vectors.')
+            close(rdm, file['rdm'][()], atol=0, rtol=0)
+    return {'items': len(report['items']), 'streaming_means_and_compact_rdm': True}
+
+
 def verify(data, *, device='cpu'):
     print('COMPUTE CHECK: reading actual features and reviewed query operators', flush=True)
     torch.set_num_threads(1)
@@ -150,6 +335,14 @@ def verify(data, *, device='cpu'):
         torch.backends.cuda.matmul.allow_tf32 = False
         torch.backends.cudnn.allow_tf32 = False
     arrays, projector, examples, windows = real_inputs(data)
+    from neurosym.encoding import validation_row_scale
+    # Different lengths of two released text-feature series exercise equal-story
+    # scaling without inventing fMRI targets or substituting them in a fit.
+    actual = [a['english1000'][20:20 + n, :24] for a, n in zip(arrays, [32, 64], strict=True)]
+    masks = {str(i): np.isfinite(v).all(1) for i, v in enumerate(actual)}
+    scale = validation_row_scale(masks, list(masks))
+    close(np.asarray(np.mean([np.square(v).mean() for v in actual])),
+          np.asarray(np.square(np.concatenate(actual) * scale[:, None]).mean()))
     print('COMPUTE CHECK: merged story PCA and device projection', flush=True)
     pca_inputs = [a['english1000'] for a in arrays]
     assignment = np.arange(pca_inputs[0].shape[1]) % 8
@@ -263,7 +456,8 @@ def verify(data, *, device='cpu'):
                     close(aa['routing'].detach().numpy(), bb['routing'].detach().cpu().numpy(), atol=2e-5, rtol=2e-5)
         detailed = evaluate(opt, examples, windows)
         original = evaluate(ref, examples, windows)
-        for a, b in zip(original, detailed, strict=True):
+        row_key = lambda r: (r['query_id'], r['repeat'])
+        for a, b in zip(sorted(original, key=row_key), sorted(detailed, key=row_key), strict=True):
             close(np.asarray(a['probabilities']), np.asarray(b['probabilities']), atol=2e-5, rtol=2e-5)
         lean = evaluate(opt, examples, windows, probabilities=False)
         if decoder_metrics(detailed) != decoder_metrics(lean):
@@ -273,6 +467,9 @@ def verify(data, *, device='cpu'):
     print('COMPUTE CHECK: source-batched logits, weighted losses, gradients and candidate order', flush=True)
     _, batch_projector, batch_examples, batch_windows = real_inputs(data, include_full_source=True)
     batch_errors = verify_source_batches(batch_examples, batch_windows, batch_projector, device=device)
+    cross_source_errors = verify_cross_source_batches(batch_examples, batch_windows, batch_projector, device=device)
+    export_checks = verify_exports(data, projector, device=device)
+    geometry_storage_checks = verify_geometry_storage(data, batch_examples, batch_windows, device=device)
 
     # Actual prior eligibility and repeats need no fMRI arrays or dummy windows.
     prior_examples, no_windows, _ = examples_and_windows(data, ['story_11'], None,
@@ -324,6 +521,8 @@ def verify(data, *, device='cpu'):
             pass
         else:
             raise AssertionError('Different fold reused a prepared cache entry.')
+        numerical_data.config = copy.deepcopy(data.config)
+        numerical_data.config['decoder']['source_batch_size'] = 2
         base = SemanticDecoder('linear', (8, 4, 3), vocabulary, hidden=16, site_mask=projector.site_mask).to(device)
         start_rng = torch.get_rng_state()
         start_cuda = torch.cuda.get_rng_state_all() if device.startswith('cuda') else None
@@ -340,7 +539,7 @@ def verify(data, *, device='cpu'):
             atomic_torch_save(value, destination)
             raise InterruptedError('Intentional interruption after a complete numerical-check epoch.')
         try:
-            with patch('neurosym.decoder_fit.atomic_torch_save', interrupt_after_save):
+            with patch('neurosym.decoder_minibatch.atomic_torch_save', interrupt_after_save):
                 train(interrupted, checkpoint)
         except InterruptedError:
             pass
@@ -365,7 +564,7 @@ def verify(data, *, device='cpu'):
                 train(mid_model, mid_checkpoint)
         except YieldRequested:
             saved = torch.load(mid_checkpoint, map_location='cpu', weights_only=True)
-            if saved['completed'] != 0 or saved['pending_epoch']['cursor'] != 1:
+            if saved['completed'] != 0 or saved['pending']['cursor'] != 1:
                 raise AssertionError('Mid-epoch source cursor was not checkpointed.')
         else:
             raise AssertionError('Mid-epoch yield was not exercised.')
@@ -445,6 +644,7 @@ def verify(data, *, device='cpu'):
             if value != observed or pvalue != (1 + exceed) / 128:
                 raise AssertionError('Map dot-product reuse changed the observed statistic or permutation tail.')
     manifest = execution_manifest(data)
+    protocol_checks = verify_protocol(data, manifest)
     from submit_analysis import submission_groups, ready_workers, seconds
     stages = submission_groups(manifest)
     if sorted(i for s in stages for i in s['indices']) != list(range(len(manifest['jobs']))):
@@ -489,13 +689,18 @@ def verify(data, *, device='cpu'):
              'worker_counts': manifest['worker_counts'], 'submission_arrays': len(stages),
             'ridge_operator_max_error': operator_error, 'ridge_prediction_max_error': prediction_error,
             'ridge_selection_mse_max_error': score_error, 'decoder_logit_max_errors': errors,
-             'source_batch_errors': batch_errors,
+              'source_batch_errors': batch_errors,
+              'cross_source_batch_errors': cross_source_errors,
+              'protocol_checks': protocol_checks,
+              'export_checks': export_checks,
+              'geometry_storage_checks': geometry_storage_checks,
              'source_batch_query_ids': [e['query_id'] for e in batch_examples],
              'merged_pca_projection_errors': pca_errors,
             'checkpoint_parameter_error': checkpoint_error, 'query_ids': [e['query_id'] for e in examples],
              'checks': ['adaptive primal/dual FP64 ridge, compact group operators and selection',
                         'dense/factorized decoder logits/gradients/routing and observation reuse',
-                       'source-batched public programs, weighted losses, gradients and candidate order',
+                        'source-batched public programs, weighted losses, gradients and candidate order',
+                        'multi-source ownership, macro objective/gradients and partial minibatches',
                        'validation metric transfers', 'actual query-only prior eligibility/repeats and fit reuse',
                          'fold cache serialization/invalidation/budgets', 'epoch and mid-source resume including optimizer/RNG/selection',
                         'story-moment PCA, subspaces/ranks and device projection', 'OS lock release and HDF trace sharing',

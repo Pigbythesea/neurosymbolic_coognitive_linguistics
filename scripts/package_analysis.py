@@ -14,7 +14,7 @@ from neurosym.io import object_hash, read_json
 
 MODULES = ["__init__", "io", "dataset", "extraction_inputs", "model_registry", "temporal", "extraction",
            "model_features", "graphs", "semantics", "semantic_queries", "semantic_records", "semantic_features",
-           "analysis_data", "analysis_runs", "spatial", "decoders", "decoder_fit", "decoder_batch", "encoding", "encoding_support", "geometry",
+           "analysis_data", "analysis_runs", "spatial", "decoders", "decoder_fit", "decoder_batch", "decoder_minibatch", "protocol", "study_jobs", "study_reports", "grounding_checks", "encoding", "encoding_support", "geometry",
            "reviewed_archive", "reviewed_graph", "reviewed_queries", "reviewed_compile", "experiment_plan", "compute", "storage", "execution", "pca", "runtime"]
 EXECUTION_SCRIPTS = ['scripts/run_analysis.py', 'scripts/verify_compute.py', 'scripts/submit_analysis.py',
                      'scripts/run_manifest_array.py', 'scripts/run_analysis_array.sbatch']
@@ -74,6 +74,7 @@ def main():
               "manifests/frozen-models.lock.json", "docs/experiment_definitions.md",
               "docs/reviewed_downstream.md", "docs/encoding_support.md", 'docs/compute.md', 'configs/compute.json',
                'artifacts/compute-verification-cpu.json', 'artifacts/execution/latest.json', 'docs/CLUSTER_STATUS.md',
+              'docs/ENGINEERING_HANDOFF.md', 'docs/SCIENTIFIC_STATUS_HANDOFF.md',
               jobs_path.relative_to(ROOT).as_posix()]
     for name in shared:
         contents[name] = (ROOT / name).read_bytes()
@@ -98,8 +99,14 @@ def main():
     with zipfile.ZipFile(destination) as file:
         if file.testzip() is not None or any(hashlib.sha256(file.read(n)).hexdigest() != d for n, d in manifest["files"].items()):
             raise ValueError("Analysis bundle CRC/content verification failed.")
-    for name in ("install_analysis_bundle.py", "setup_analysis.sbatch"):
+    for name in ("install_analysis_bundle.py", "setup_analysis.sbatch", "update_analysis.sbatch"):
         shutil.copyfile(ROOT / "scripts" / name, ROOT / "artifacts" / name)
+    transfer_files = ['artifacts/analysis-source.zip', 'artifacts/install_analysis_bundle.py',
+                      'artifacts/update_analysis.sbatch', 'scripts/cluster_env.sh']
+    transfer = {'format_version': 1, 'semantic_build_hash': data.semantics.build_hash, 'code_root': code_root,
+                'manifest_hash': jobs['content_hash'],
+                'files': {n: hashlib.sha256((ROOT / n).read_bytes()).hexdigest() for n in transfer_files}}
+    (ROOT / 'artifacts/analysis-transfer.json').write_text(json.dumps(transfer, indent=2) + '\n', encoding='utf-8')
     print("ANALYSIS BUNDLE:", len(contents), "files;", destination.stat().st_size, "bytes")
     print("SHA256:", hashlib.sha256(destination.read_bytes()).hexdigest())
     print("Analysis code is isolated by content hash; no annotation runner, prompts, keys or model weights are included.")

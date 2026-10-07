@@ -17,6 +17,7 @@ from .decoder_batch import choice_targets, choice_losses
 from .runtime import analysis_lock as exclusive_run, deadline
 from .io import object_hash, read_json
 from .storage import require_free_space
+from .protocol import selection_partition, selection_options
 
 
 def observation_options(options):
@@ -90,6 +91,8 @@ def make_decoder(data, examples, windows, projector, options, device):
     model = SemanticDecoder(options["family"], shape, vocabulary,
                             hidden=data.config["decoder"]["hidden"],
                             site_mask=None if projector is None else projector.site_mask).to(device)
+    model.source_program_budget = data.config['decoder'].get('program_cache_mib', 1024) * 2**20
+    model.source_batch_size = data.config['decoder']['source_batch_size']
     return model, vocabulary
 
 
@@ -118,6 +121,10 @@ def evaluate(model, examples, windows, *, pairing=None, trace_file=None, probabi
     model.eval()
     device = next(model.parameters()).device
     windows = None if model.family == 'prior' else device_windows(windows, device)
+    if trace_file is None and model.source_batched:
+        from .decoder_minibatch import evaluate_batched
+        return evaluate_batched(model, examples, windows, pairing=pairing, probabilities=probabilities,
+                                size=getattr(model, 'source_batch_size', 16))
     by_source, rows = defaultdict(list), []
     for example in examples:
         by_source[example["source_id"]].append(example)
@@ -128,6 +135,16 @@ def evaluate(model, examples, windows, *, pairing=None, trace_file=None, probabi
             observed_source = pairing[source] if pairing else source
             repeats = queries[0].get('observation_repeats', 1) if windows is None else len(windows[observed_source])
             for repeat in range(repeats):
+                if trace_file is not None:
+                    paths = [e['query_id'] + f'/{repeat}' for e in queries]
+                    if all(p in trace_file and trace_file[p].attrs.get('prediction_complete', False) for p in paths):
+                        rows.extend(json.loads(bytes(trace_file[p]['prediction_record'][()]).decode('utf-8')) for p in paths)
+                        continue
+                    # A yielded source is committed as a unit. A partial source
+                    # from an interrupted write is recomputed, never trusted.
+                    for p in paths:
+                        if p in trace_file:
+                            del trace_file[p]
                 trace_arrays = {}  # identical arrays share HDF storage within this source/repeat
                 model.descriptors.begin_source()
                 observed = model.encode_observation(None if windows is None else windows[observed_source][repeat], checked=True)
@@ -181,8 +198,17 @@ def evaluate(model, examples, windows, *, pairing=None, trace_file=None, probabi
                         row['probabilities'] = flat[offset:offset + count].tolist()
                         offset += count
                     rows.append(row)
+                    if trace_file is not None:
+                        group = trace_file[row['query_id'] + f'/{repeat}']
+                        payload = np.frombuffer(json.dumps(row, ensure_ascii=False).encode('utf-8'), dtype=np.uint8)
+                        group.create_dataset('prediction_record', data=payload, compression='lzf')
+                        group.attrs['prediction_complete'] = True
                 model.descriptors.end_source()
                 model.end_observation()
+                if trace_file is not None:
+                    trace_file.flush()
+                    deadline.advance()
+                    deadline.check()
     return rows
 
 
@@ -217,7 +243,7 @@ def fit_identity(data, model, examples, windows, validation, **settings):
             'device': str(next(model.parameters()).device), 'decoder_config': data.config['decoder'],
             'train': describe(examples, windows),
             'validation': describe(*validation) if validation else None, 'settings': settings,
-            'code': {n: file_hash(Path(__file__).parent / n) for n in ('decoder_fit.py', 'decoders.py', 'decoder_batch.py', 'compute.py')}}
+            'code': {n: file_hash(Path(__file__).parent / n) for n in ('decoder_fit.py', 'decoders.py', 'decoder_batch.py', 'decoder_minibatch.py', 'protocol.py', 'compute.py')}}
 
 
 def train_decoder(data, model, examples, windows, *, learning_rate, epochs, seed,
@@ -237,6 +263,11 @@ def train_decoder(data, model, examples, windows, *, learning_rate, epochs, seed
         with np.load(path / 'weights.npz', allow_pickle=False) as file:
             model.load_state_dict({k: torch.from_numpy(file[k]) for k in file.files})
         return {**read_json(path / 'fit.json'), 'shared_prior_fit': path.name, 'cache_hit': bool(cache.hits)}
+    if cfg.get('source_batch_size', 1) > 1:
+        from .decoder_minibatch import train_minibatches
+        return train_minibatches(data, model, examples, windows, identity=identity,
+            learning_rate=learning_rate, epochs=epochs, seed=seed, validation=validation,
+            pairing=pairing, patience=patience, checkpoint=checkpoint)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=cfg["weight_decay"])
     device, groups = next(model.parameters()).device, defaultdict(list)
     windows = None if model.family == 'prior' else device_windows(windows, device)
@@ -356,26 +387,25 @@ def train_decoder(data, model, examples, windows, *, learning_rate, epochs, seed
     return {"best_epoch": epochs, "history": history}
 
 
-def run_decoder(data, options):
-    timings = Timings(options.get('device', 'cpu'))
-    split = partition(data.semantics, options["fold"])
-    if options.get("composition_keys"):
-        split = composition_partition(data.semantics, split, options["composition_keys"])
-    data.validate_partition(split["train"], test=split["test"])
-    if options["modality"] == "model" and options.get("subject"):
-        raise ValueError("Model-only decoder runs must not be duplicated by participant.")
-    device = options.get("device", "cpu")
-    if device.startswith("cuda") and not torch.cuda.is_available():
-        raise RuntimeError("CUDA explicitly requested but unavailable; no silent device substitution.")
+def select_decoder(data, options):
+    options = selection_options(data, options)
+    split = selection_partition(data, options)
+    data.validate_partition(split['train'], test=split['test'])
+    cfg, device = data.config['decoder'], options.get('device', 'cpu')
     if device.startswith('cuda'):
+        if not torch.cuda.is_available():
+            raise RuntimeError('CUDA requested for decoder selection but unavailable.')
         torch.backends.cuda.matmul.allow_tf32 = False
         torch.backends.cudnn.allow_tf32 = False
-    directory, identity = run_directory(data, "decoder", options)
-    free_reserve = data.compute_config['storage']['minimum_free_gib'] * 2**30
-    require_free_space(directory, 0, free_reserve)
-    cfg = data.config["decoder"]
-    with exclusive_run(directory / "RUNNING.lock"):
-        if (directory / "complete.json").exists():
+    directory, identity = run_directory(data, 'decoder-selection', options)
+    timings = Timings(device)
+    with exclusive_run(directory / 'RUNNING.lock'):
+        if (directory / 'complete.json').exists():
+            return directory
+        if options['family'] == 'linear':
+            result = {'selected_learning_rate': cfg['linear_policy']['learning_rate'],
+                      'refit_epochs': cfg['linear_policy']['epochs'], 'selection': 'fixed-linear-protocol'}
+            write_report(directory / 'complete.json', {'identity': identity, 'partition': split, **result})
             return directory
         scores = [[] for _ in cfg["learning_rates"]]
         for index, fold in enumerate(split["inner"]):
@@ -403,12 +433,44 @@ def run_decoder(data, options):
                     (directory / f'inner-{index}-lr-{lr_index}.pt').unlink(missing_ok=True)
             for group, result in zip(scores, results, strict=True):
                 group.append(result)
-        mean_losses = [np.mean([v["best_validation_nll"] for v in s]) for s in scores]
+        mean_losses = [np.average([v['best_validation_nll'] for v in s],
+                                 weights=[len(f['validation']) for f in split['inner']]) for s in scores]
         selected = int(np.argmin(mean_losses))
         epochs = max(1, int(round(np.median([v["best_epoch"] for v in scores[selected]]))))
         learning_rate = cfg["learning_rates"][selected]
-        write_report(directory / "selection.json", {"mean_inner_nll": mean_losses, "selected_learning_rate": learning_rate,
-                     "refit_epochs": epochs, "epoch_policy": "median selected inner-fold epoch; no test inspection"})
+        write_report(directory / 'complete.json', {'identity': identity, 'partition': split,
+            'mean_inner_nll': mean_losses, 'selected_learning_rate': learning_rate,
+            'refit_epochs': epochs, 'selection_seed': cfg['selection_seed'],
+            'epoch_policy': 'median selected inner-fold epoch; no test inspection',
+            'shared_across_evaluation_seeds': True, 'runtime': timings.report()})
+    return directory
+
+
+def run_decoder(data, options):
+    timings = Timings(options.get('device', 'cpu'))
+    split = selection_partition(data, options)
+    data.validate_partition(split["train"], test=split["test"])
+    if options["modality"] == "model" and options.get("subject"):
+        raise ValueError("Model-only decoder runs must not be duplicated by participant.")
+    device = options.get("device", "cpu")
+    if device.startswith("cuda") and not torch.cuda.is_available():
+        raise RuntimeError("CUDA explicitly requested but unavailable; no silent device substitution.")
+    if device.startswith('cuda'):
+        torch.backends.cuda.matmul.allow_tf32 = False
+        torch.backends.cudnn.allow_tf32 = False
+    directory, identity = run_directory(data, "decoder", options)
+    free_reserve = data.compute_config['storage']['minimum_free_gib'] * 2**30
+    require_free_space(directory, 0, free_reserve)
+    cfg = data.config["decoder"]
+    with exclusive_run(directory / "RUNNING.lock"):
+        if (directory / "complete.json").exists():
+            return directory
+        selected_path = select_decoder(data, options)
+        selected = read_json(selected_path / 'complete.json')
+        learning_rate, epochs = selected['selected_learning_rate'], selected['refit_epochs']
+        write_report(directory / 'selection.json', {'parent': str(selected_path),
+            'selected_learning_rate': learning_rate, 'refit_epochs': epochs,
+            'null_policy': 'matched-settings training-correspondence ablation' if options.get('retrain_null') else None})
         with timings.phase('observation_preparation'):
             projector = (None if options['family'] == 'prior' else
                          data.projector(options["modality"], split["train"], **observation_options(options)))
@@ -441,11 +503,18 @@ def run_decoder(data, options):
                      "site_mask": model.site_mask.cpu().numpy(), "fit": fit,
                      "site_coordinates": ('none: query-only prior' if options['family'] == 'prior' else
                                           "Schaefer parcels" if options["modality"] == "brain" else "seeded model-coordinate groups, not anatomical regions")})
-        with h5py.File(directory / "traces.h5", "w") as file:
-            file.attrs.update(complete=False, semantic_build_hash=data.semantics.build_hash)
-            with timings.phase('heldout_predictions_and_traces'):
-                rows = evaluate(model, test, test_windows, trace_file=file, free_reserve_bytes=free_reserve)
-            file.attrs["complete"] = True
+        if options.get('export_traces', options['family'] == 'structured' and not options.get('retrain_null')):
+            with h5py.File(directory / 'traces.h5', 'a') as file:
+                if len(file) and file.attrs.get('run_identity') != object_hash(identity):
+                    raise ValueError('Partial trace file belongs to another fit.')
+                file.attrs.update(complete=False, semantic_build_hash=data.semantics.build_hash)
+                file.attrs['run_identity'] = object_hash(identity)
+                with timings.phase('heldout_predictions_and_traces'):
+                    rows = evaluate(model, test, test_windows, trace_file=file, free_reserve_bytes=free_reserve)
+                file.attrs['complete'] = True
+        else:
+            with timings.phase('heldout_predictions'):
+                rows = evaluate(model, test, test_windows)
         with gzip.open(directory / "predictions.jsonl.gz", "wt", encoding="utf-8", compresslevel=1) as file:
             for row in rows:
                 file.write(json.dumps(row, ensure_ascii=False) + "\n")
@@ -454,9 +523,19 @@ def run_decoder(data, options):
         with gzip.open(directory / "mismatched-predictions.jsonl.gz", "wt", encoding="utf-8", compresslevel=1) as file:
             for row in disrupted:
                 file.write(json.dumps(row, ensure_ascii=False) + "\n")
+        if options.get('faithfulness'):
+            from .grounding_checks import faithfulness
+            with timings.phase('grounding_faithfulness'):
+                write_report(directory / 'faithfulness.json', faithfulness(model, test, test_windows, test_sources,
+                    fraction=cfg['faithfulness_fraction'], seed=options['seed'], checkpoint=directory / 'faithfulness-progress.json'))
         report = {"identity": identity, "partition": split, "matched": decoder_metrics(rows),
+                  'evaluation_support_hash': object_hash(sorted([
+                      {k: e[k] for k in ['query_id', 'source_id', 'story_id', 'family', 'weight', 'acceptable_indices']}
+                      for e in test], key=lambda e: e['query_id'])),
                   "test_mismatch": decoder_metrics(disrupted), "test_pairing": mismatch,
                   'prediction_files': ['predictions.jsonl.gz', 'mismatched-predictions.jsonl.gz'],
+                  'traces_exported': bool(options.get('export_traces', options['family'] == 'structured' and not options.get('retrain_null'))),
+                  'faithfulness_file': 'faithfulness.json' if options.get('faithfulness') else None,
                   "training_pairing": pairing, "torch_version": torch.__version__, "device": str(device),
                   "interpretation": "Answer-supervised decoder evidence; no anatomical grounding labels or biological-necessity claim.",
                   "mismatch_scope": "Within-story nonoverlapping delayed windows. Model states retain shared earlier prefixes; retrained cross-story null is a separate run.",
@@ -465,16 +544,18 @@ def run_decoder(data, options):
         write_report(directory / 'runtime.json', {**timings.report(), 'cache_hits': data.cache.hits,
                                                  'cache_misses': data.cache.misses})
         (directory / 'refit.pt').unlink(missing_ok=True)
+        (directory / 'faithfulness-progress.json').unlink(missing_ok=True)
     return directory
 
 
 def prepare_decoder(data, options):
     """Create real training-fitted dependencies with the configured PCA backend."""
-    split = partition(data.semantics, options['fold'])
+    split = selection_partition(data, options)
     data.validate_partition(split['train'], test=split['test'])
     timings = Timings(data.compute_config['preparation']['device'])
     prepared = []
-    for fold in [*split['inner'], {'train': split['train'], 'validation': split['test']}]:
+    inner = [] if options.get('outer_only') else split['inner']
+    for fold in [*inner, {'train': split['train'], 'validation': split['test']}]:
         deadline.check()
         with timings.phase('projectors_and_windows'):
             projector = data.projector(options['modality'], fold['train'], **observation_options(options))

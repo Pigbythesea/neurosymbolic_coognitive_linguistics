@@ -1,6 +1,6 @@
 #!/bin/bash
-# Install the validated 2026-10-07 source-batching bundle. No dependency installs.
-#SBATCH --job-name=ns-update-batch
+# Install the bundle pinned by the locally generated transfer receipt.
+#SBATCH --job-name=ns-update-protocol
 #SBATCH --account=tshu2_scai01
 #SBATCH --qos=jhu
 #SBATCH --partition=med
@@ -29,6 +29,7 @@ printf 'ANALYSIS UPDATE job=%s host=%s start=%s\n' "$SLURM_JOB_ID" "$(hostname -
 /usr/bin/python3.11 -I -B -u - <<'PY'
 from pathlib import Path
 import hashlib
+import json
 import os
 import re
 import subprocess
@@ -36,11 +37,16 @@ import subprocess
 root = Path('/weka/projects/tshu2/zzhan330/neurosymbolic_coognitive_linguistics')
 if Path.cwd() != root or root.resolve() != root:
     raise SystemExit('STOP: workspace resolves elsewhere.')
-expected = {
-    'artifacts/analysis-source.zip': '887975589fdb38a2fd626b5556551319436504e1cc8cebdc7e58a358929cb0e7',
-    'artifacts/install_analysis_bundle.py': '6635def39212cc750ef62e1810e61bb7a50b8bdcd22b7c60a45165d4783d03e8',
-    'scripts/cluster_env.sh': 'bfad6e21322e06b4e043e8851353656a420ef9a5a7ee64380705d84f10eb2245',
-}
+receipt_path = root / 'artifacts/analysis-transfer.json'
+if not receipt_path.resolve().is_relative_to(root):
+    raise SystemExit('STOP: transfer receipt escapes workspace.')
+transfer = json.loads(receipt_path.read_text())
+expected = transfer['files']
+if transfer.get('format_version') != 1 or set(expected) != {
+    'artifacts/analysis-source.zip', 'artifacts/install_analysis_bundle.py',
+    'artifacts/update_analysis.sbatch', 'scripts/cluster_env.sh'
+}:
+    raise SystemExit('STOP: unexpected transfer receipt inventory.')
 for name, wanted in expected.items():
     path = root / name
     if not path.resolve().is_relative_to(root):

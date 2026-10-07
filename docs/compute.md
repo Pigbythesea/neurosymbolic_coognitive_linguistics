@@ -1,102 +1,40 @@
 # Analysis computation and cluster handoff
 
-Updated 2026-10-06. Execution implementation within
-[PROJECT_HANDOFF.md](PROJECT_HANDOFF.md) and
-[experiment_definitions.md](experiment_definitions.md). The runtime pass preserves
-the accepted annotations, candidates, temporal alignment, train/test partitions,
-full voxel panel, model/layer inventory, losses, source/story weights, nulls,
-hyperparameter grids, seeds, epochs and early-stopping rules.
+Updated 2026-10-07 for protocol 2. Current engineering status is in
+[ENGINEERING_HANDOFF.md](ENGINEERING_HANDOFF.md); adopted scientific decisions
+are in [SCIENTIFIC_STATUS_HANDOFF.md](SCIENTIFIC_STATUS_HANDOFF.md). The original
+[PROJECT_HANDOFF.md](PROJECT_HANDOFF.md) remains intact.
 
 ## Current verification and next command
 
-The latest decoder update is **source-batched execution**, motivated by cluster
-measurements: warm linear brain epochs took 335-354 s, a structured brain epoch
-took 987.6 s, and five-second GPU samples showed 7-17% activity with about 1 GB
-of framebuffer use. These measurements describe the preceding implementation;
-the speed of the new implementation has not yet been measured on a GPU.
+The local implementation now uses cross-source minibatches, shared three-fold
+selection, fixed linear probes, a single encoding search union, primary versus
+descriptive layer roles, and scheduled geometry/statistics/reporting. Query
+semantics, outer heldout evaluation, participants, models and semantic domains
+are preserved. Selection and AdamW trajectories change under the declared new
+protocol; old checkpoints must retain their old identities.
 
-`decoder_batch.py` packs public inputs for a complete source, embeds descriptor
-bags together, scores prior/linear/MLP candidates in one batch, and batches
-structured primitive and binding calculations. Operator gates are applied after
-site reduction for binding, retaining the invalid-site correction. Compose
-retains dense relation row-softmax and the original sequence of transitions.
-Losses retain acceptable-answer marginalization, exact candidate order, repeat
-averaging and source/story weights. AdamW still updates once per source. No
-cross-source minibatch, mixed precision or new model parameter was introduced.
-The pointwise path remains available for reference checks and detailed traces;
-legacy structured query syntax also retains that path. All accepted reviewed
-query tasks use the new executor during training and untraced validation.
-
-Packed constants are bounded to 128 MiB per model (with at most 2048 source
-programs); learned vectors are recomputed each observation/update. Constants are
-cleared on device/dtype changes and are not checkpointed or persisted to disk.
-Epoch logs now separate training/validation time and report packed-cache bytes.
-
-A focused CPU comparison on 14 real accepted queries passed all four families:
-maximum logit error 1.20e-6, gradient error 4.18e-7, weighted loss error 2.39e-7.
-A broader invocation reached the checkpoint/cache phase after passing source
-batch comparisons including the first story's complete eligible source with
-the largest total candidate count. The agent interrupted that long invocation
-before completion under the user-run-long-commands workflow. It is not a full
-verification receipt. That complete source is now checked specifically in the
-batch comparison rather than redundantly expanded through unrelated checks.
-**Full updated preparation/packaging, recovery checks and actual CUDA equivalence
-remain user-run requirements before transfer and experiments.**
-
-The prior now has its own `cpu-prior` resource profile: four CPUs, 12 GiB,
-one-hour resumable windows. CPU fallback profiles respect the inspected med
-4000 MiB-per-CPU rule (17 CPUs/64 GiB preparation, 34/128 encoding, 9/32 decoding).
-GPU decoder defaults use 30-minute resumable windows and concurrency two for
-the currently available shared-account capacity. The account limit is 16 GPUs,
-not a permanent two-GPU project quota. Other stage concurrency limits are not a
-reservation and must be budgeted jointly against current account use. Revised
-decoder CPU/CUDA performance still needs measurement; the old prior comparison
-does not prove the fastest device for the new batched implementation.
-
-Code/config identities change with this update. Rebuild the bundle and execution
-manifest; preserve old fitted outputs/checkpoints with their original code and
-do not edit their identities to force reuse. Frozen model extraction and accepted
-annotation contents are unchanged. Existing receipts/ZIP are not certification
-of this updated source.
-
-The compiled build is readable after the researcher's Windows ACL repair.
-Python 3.11 syntax and configuration parsing passed during implementation.
-A short calculation on released Deniz letter features compared adaptive primal
-ridge against the reference dual solve: maximum operator difference
-5.134781488891349e-16. This is a numerical identity check, not a brain result.
-The corresponding direct-versus-sufficient-statistic selection loss check differed
-by at most 5.273559366969494e-16; a wider actual feature matrix selected the dual path.
-The final-pass short PCA check used actual released English1000 columns from
-stories 01/02: merged centered moments versus concatenated fitting gave a maximum
-subspace difference of 2.886579864025407e-15 and zero FP32 projection difference.
-This check covers CPU arithmetic on those inputs, not CUDA or neural recordings.
-
-**The full updated verification, packaging and CUDA checks remain pending.**
-The researcher runs long commands; the agent has not started cluster jobs,
-connected remotely, recovered a lock, or transferred this implementation.
-
-Run in local Windows CMD:
+Targeted real-query CPU checks passed multi-source logits, losses, gradients and
+epoch/mid-minibatch recovery. Full local verification/packaging and updated CUDA
+qualification are pending. The researcher runs the complete local command in
+Windows CMD:
 
 ```cmd
 cd /d C:\Users\pigby\neurosymbolic_coognitive_linguistics
 call scripts\prepare_analysis.cmd
 ```
 
-This performs complete annotation/compiler/support checks, analysis verification,
-compute equivalence and packaging. It logs to
-`artifacts\prepare-analysis.log`; success is `ANALYSIS PACKAGE READY`.
-An existing ZIP or earlier receipt does not certify these changes. Packaging
-rejects mismatched source, configuration, build and verification identities.
+Success is ANALYSIS PACKAGE READY. The log is artifacts/prepare-analysis.log.
+Packaging also generates analysis-transfer.json and copies the current update
+helper into artifacts. The older installed bundle and GPU timing logs do not
+certify this implementation or establish its runtime.
 
-The extended compute verifier uses actual released textual arrays and accepted
-queries. It checks primal/dual operators, each group contribution, compact
-serialization, target metrics, both ridge selection formulations, dense versus
-factorized decoder logits/gradients/routing, within-observation reuse, validation
-transfers, prior sharing, cache budgets/invalidation, checkpoint recovery,
-CPU/CUDA RDM products and permutation tails, and complete scheduling coverage.
-Ridge tolerances are 1e-8; FP32 decoder logits/routing 2e-5 and gradients 3e-5.
-CUDA checkpoint comparisons allow 3e-5 and must retain the selected epoch.
-These checks do not substitute text arrays for missing scientific fMRI/model inputs.
+The dispatcher caps its own outstanding GPU tasks at eight across project
+manifests. One array task uses one GPU; independent-fit vectorization and manual
+multi-process GPU sharing are not implemented. Full traces are restricted to
+structured context parents and support continuation. The following sections
+describe retained numerical/storage mechanisms; current configurations and the
+engineering handoff supersede older workload counts and resource estimates.
 
 ## Where computation belongs
 
@@ -166,7 +104,7 @@ that it beats device eigendecomposition. Compare preparation timings on cluster.
   Public query syntax is frozen and compiled once: validation, binding operations
   and relation descriptors are reused. Learned vectors remain source/update-local.
 - **Transfers and I/O:** stage actual decoder windows once per fit; transfer
-  validation scalars per source/repeat. Encoding matrices stay on the selected
+  one aggregate validation loss per epoch during selection. Encoding matrices stay on the selected
   device through products and metrics. Trace public inputs reference the pinned
   compiled query/catalog rather than repeating its candidate JSON in every trace.
   Matched/mismatched prediction JSONL is losslessly gzip-compressed at level 1;
@@ -217,11 +155,11 @@ For the current development definitions, metadata-only full-row arithmetic gives
 
 | Encoding arrays only | Uncompressed ceiling before masks/compression/sharing |
 |---|---:|
-| Previous duals + predictions + all group contributions | 36,533,910,825,360 bytes (36.53 TB) |
-| Current operators + means + metric arrays | 952,894,714,032 bytes (0.953 TB) |
+| Duals + predictions + all group contributions for protocol 2 | 10,488,957,164,712 bytes (10.49 TB) |
+| Operators + means + metric arrays for protocol 2 | 251,966,237,016 bytes (0.252 TB) |
 
-This is about **97.4% less in that array bound**, not measured disk usage or a
-97.4% reduction of the entire project. Decoder weights/traces, cached moments,
+These totals cover development and final. This is about **97.6% less in that array bound**, not measured disk usage or a
+97.6% reduction of the entire project. Decoder weights/traces, cached moments,
 geometry, metadata, source datasets and frozen states are additional. The
 manifest recomputes these bounds from the actual configured inventory.
 
@@ -299,13 +237,14 @@ The version-2 manifest under `artifacts/execution/<hash>/manifest.json` retains
 all logical jobs and separately records physical workers. It includes development
 folds, seeds, models/layers, decoder nulls and multistory-geometry fitted parents.
 Final evaluation requires a separate final manifest and explicit release.
-Geometry/comparison/report commands consume completed parents; the manifest does
-not invent new all-pairs contrasts or choose compositional holdout keys.
+Geometry/comparison/report jobs consume completed parents through declared
+dependencies. The default manifest does not choose compositional holdout keys.
 
 The submission helper defaults to a read-only dry run. On explicit researcher
 submission it dispatches only workers whose actual preparation receipts are complete.
-Pending/running workers count against each resource's concurrency cap for this
-manifest. Inspect older active manifests before starting another. Ready
+Pending/running workers count against per-resource caps and a shared eight-GPU
+cap across dispatcher ledgers under a project-wide controller lock. Manual jobs
+are outside those ledgers and require separate inspection. Ready
 work has no artificial serial-lane predecessor. Each call submits a ready wave;
 `--watch` keeps dispatching on the researcher's allocated controller node.
 `--submit --resume` reopens its durable ledger after the controller exits, with
@@ -348,9 +287,9 @@ The researcher owns all remote operations:
 3. Install the verified isolated analysis bundle on an allocated node. Preserve
    raw data and extraction caches; this pass did not change `model_features.py`
    or `temporal.py`.
-4. Resolve the documented Qwen alignment-only interruption with the researcher's
-   explicit instruction, using the existing compatible extraction implementation;
-   verify actual fMRI files and all aligned states.
+4. The previous Qwen alignment interruption was resolved; setup metadata verified
+   all five aligned models and 18 response files. Confirm the installation
+   preflight still passes; no frozen extraction rerun is required by protocol 2.
 5. Request a short multi-partition GPU allocation, run packaged numerical
    verification, check OS locking on project storage, and time selected actual
    preparation/encoding/decoder work. Verify interruption/continuation and inspect

@@ -15,8 +15,12 @@ from .semantic_features import FrozenDict
 
 
 class SourceProgram:
-    def __init__(self, model, inputs):
+    def __init__(self, model, inputs, observation_ids=None):
         self.inputs = tuple(inputs)  # keep identities alive for immutable cache keys
+        self.multi = observation_ids is not None
+        observation_ids = [0] * len(inputs) if observation_ids is None else list(observation_ids)
+        if len(observation_ids) != len(inputs) or min(observation_ids) < 0:
+            raise ValueError('Query observation ownership is incomplete.')
         self.lengths = tuple(len(value['candidates']) for value in inputs)
         self.device = model.descriptors.embedding.weight.device
         self.tensors = {}
@@ -45,23 +49,25 @@ class SourceProgram:
             self.pack('queries', queries)
             self.pack('owners', owners)
             self.pack('candidates', candidates)
+            self.pack('query_sources', observation_ids)
         else:
             primitives, operations, bindings, means, paths = [], [], [], [], []
             pids, oids, bids, mids, path_ids = {}, {}, {}, {}, {}
             outputs = {'bind': [], 'mean': [], 'path': []}
             positions = {key: [] for key in outputs}
 
+            source = 0
             def primitive(value):
-                return intern(primitives, pids, descriptor(value))
+                return intern(primitives, pids, (source, descriptor(value)))
 
             def operation(value):
-                return intern(operations, oids, descriptor(value))
+                return intern(operations, oids, (source, descriptor(value)))
 
             def binding(left, right, op):
                 return intern(bindings, bids, (primitive(left), primitive(right), operation(op)))
 
             offset = 0
-            for value, plan in zip(inputs, plans, strict=True):
+            for value, plan, source in zip(inputs, plans, observation_ids, strict=True):
                 ast, candidates = value['ast'], value['candidates']
                 if ast['op'] != 'reviewed_choice':
                     raise ValueError('Legacy structured syntax must use the scalar reference path.')
@@ -84,8 +90,10 @@ class SourceProgram:
                 outputs[kind].extend(values)
                 positions[kind].extend(range(offset, offset + len(candidates)))
                 offset += len(candidates)
-            self.pack('primitives', primitives)
-            self.pack('operations', operations)
+            self.pack('primitives', [v[1] for v in primitives])
+            self.pack('primitive_sources', [v[0] for v in primitives])
+            self.pack('operations', [v[1] for v in operations])
+            self.pack('operation_sources', [v[0] for v in operations])
             self.has_bindings = bool(bindings)
             if bindings:
                 self.pack('bindings', bindings)
@@ -154,6 +162,8 @@ class SourceProgram:
             candidates = encoded[t['candidates']]
             paired = torch.cat((query, candidates, query * candidates), dim=-1)
             flat = model.prior(paired).squeeze(-1)
+            if observed is not None and self.multi:
+                observed = observed[t['query_sources'][t['owners']]]
             if model.family == 'linear':
                 flat = flat + (model.query_pair(paired) * observed).sum(-1) / math.sqrt(model.hidden)
             elif model.family == 'mlp':
@@ -161,7 +171,9 @@ class SourceProgram:
                 flat = flat + model.flexible(torch.cat((observed.expand_as(condition), condition,
                                                        observed * condition), dim=-1)).squeeze(-1)
         else:
-            scores = (model.grounding_weight(encoded[t['primitives']]) @ observed.T) / math.sqrt(model.hidden)
+            observed = observed if self.multi else observed[None]
+            primitive_observed = observed[t['primitive_sources']]
+            scores = torch.einsum('nh,nph->np', model.grounding_weight(encoded[t['primitives']]), primitive_observed) / math.sqrt(model.hidden)
             scores = scores.masked_fill(~model.site_mask[None, :], -1e4)
             routes = scores.softmax(-1)
             gates = model.operator(encoded[t['operations']]).tanh()
@@ -171,8 +183,8 @@ class SourceProgram:
                 valid_routes = routes * model.site_mask
                 # Moving the operation gates outside the site sum avoids a
                 # bindings x sites x rank expansion, with identical algebra.
-                l = (valid_routes @ left)[a] * (1 + gates[op, :model.rank])
-                r = (valid_routes @ right)[b] * (1 + gates[op, model.rank:])
+                l = torch.einsum('np,npr->nr', valid_routes, left[t['primitive_sources']])[a] * (1 + gates[op, :model.rank])
+                r = torch.einsum('np,npr->nr', valid_routes, right[t['primitive_sources']])[b] * (1 + gates[op, model.rank:])
                 invalid = (routes * ~model.site_mask).sum(-1)
                 invalid_mass = invalid[a] * routes.sum(-1)[b] + valid_routes.sum(-1)[a] * invalid[b]
                 evidence = (routes * scores).sum(-1)
@@ -183,8 +195,8 @@ class SourceProgram:
             if 'path_starts' in t:
                 state = routes[t['path_starts']]
                 operators = t['compose_ops']
-                l = left[None] * (1 + gates[operators, :model.rank, None].transpose(1, 2))
-                r = right[None] * (1 + gates[operators, model.rank:, None].transpose(1, 2))
+                l = left[t['operation_sources'][operators]] * (1 + gates[operators, :model.rank, None].transpose(1, 2))
+                r = right[t['operation_sources'][operators]] * (1 + gates[operators, model.rank:, None].transpose(1, 2))
                 relations = (l @ r.transpose(1, 2)) / math.sqrt(model.rank)
                 relations = relations.masked_fill(~(model.site_mask[:, None] & model.site_mask[None]), -1e4).softmax(-1)
                 for depth in self.path_depths:
