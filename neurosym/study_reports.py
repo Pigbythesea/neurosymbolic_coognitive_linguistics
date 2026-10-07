@@ -16,23 +16,48 @@ def parent_path(data, execution, identity):
 
 
 def geometry_panel(data, options, execution, directory):
-    from .geometry import run_geometry
+    from contextlib import ExitStack
+    import h5py
+    from .geometry import run_geometry, semantic_occurrences
+    from .analysis_runs import partition
+    from .trace_geometry import build_tables
+    from .trace_store import read_json_array
     plan = read_json(data.root / 'configs/experiments.json')['geometry']
     base = {k: v for k, v in options.items() if k not in {'views', 'parent_job'}}
     if options.get('parent_job'):
         base['from_run'] = str(parent_path(data, execution, options['parent_job']))
-    members = []
-    for view, kind, scope in itertools.product(options['views'], plan['kinds'], plan['scope_modes']):
-        if view == 'grounding' and kind == 'configuration':
-            continue
-        deadline.check()
-        result = run_geometry(data, {**base, 'view': view, 'kind': kind, 'scope_mode': scope,
-                                     'min_stories': plan['minimum_stories_for_context_analysis'],
-                                     'retain_signatures': view == 'grounding', 'retain_story_means': False})
-        receipt = read_json(result / 'complete.json')
-        members.append({'view': view, 'kind': kind, 'scope_mode': scope,
-                        'path': result.relative_to(data.root).as_posix(), 'available': receipt['geometry'].get('available', True)})
-        deadline.advance()
+    members, tables = [], None
+    table_path = directory / 'grounding-source-tables.h5'
+    with ExitStack() as stack:
+        if 'grounding' in options['views']:
+            split = partition(data.semantics, base['fold'])
+            panels = [semantic_occurrences(data, split['test'], kind,
+                reviewed_only=base.get('reviewed_only', False), scope_mode=scope)
+                for kind, scope in itertools.product(plan['kinds'], plan['scope_modes']) if kind != 'configuration']
+            build_tables(base['from_run'], table_path, panels,
+                reserve_bytes=data.compute_config['storage']['minimum_free_gib'] * 2**30)
+            tables = stack.enter_context(h5py.File(table_path, 'r'))
+            write_report(directory / 'grounding-reduction.json', {'identity': tables.attrs['identity'],
+                'sources': {source: {'items': read_json_array(group['items']), 'seconds': float(group.attrs['seconds'])}
+                            for source, group in tables.items()},
+                'item_reference': '[vector table, row, unique floating-value signature count]',
+                'aggregation': 'Unchanged exact-value deduplication; lexical query/repeat/trace-field order retained.'})
+        for view, kind, scope in itertools.product(options['views'], plan['kinds'], plan['scope_modes']):
+            if view == 'grounding' and kind == 'configuration':
+                continue
+            deadline.check()
+            result = run_geometry(data, {**base, 'view': view, 'kind': kind, 'scope_mode': scope,
+                                         'min_stories': plan['minimum_stories_for_context_analysis'],
+                                         'retain_signatures': view == 'grounding', 'retain_story_means': False},
+                                  grounding_tables=tables if view == 'grounding' else None)
+            receipt = read_json(result / 'complete.json')
+            members.append({'view': view, 'kind': kind, 'scope_mode': scope,
+                            'path': result.relative_to(data.root).as_posix(), 'available': receipt['geometry'].get('available', True)})
+            deadline.advance()
+    # Only regenerable vectors are removed after every panel is durable; raw
+    # traces, parent weights, signatures, RDMs and reduction counts are retained.
+    if tables is not None:
+        table_path.unlink()
     return {'members': members}
 
 

@@ -77,6 +77,14 @@ class FoldCache:
             self.check(path, identity)
             self.hits += 1
             return path
+        from .fit_reuse import prepared_cache_identity
+        legacy = prepared_cache_identity(self.root, kind, identity)
+        if legacy is not None:
+            original = self.root / kind / object_hash(legacy)
+            if original.exists():
+                self.check(original, legacy)
+                self.hits += 1
+                return original  # Preserve the producer receipt, never relabel.
         if self.require:
             raise FileNotFoundError('Preparation required for missing cache: ' + str(path))
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -199,6 +207,39 @@ class Timings:
         if self.device.startswith('cuda'):
             import torch
             torch.cuda.synchronize(self.device)
+
+    @contextmanager
+    def attempts(self, directory):
+        """Persist each allocation separately, including cooperative yields.
+
+        Totals are always a sum of immutable attempt records, never repeated
+        addition of an already cumulative runtime.json.
+        """
+        from uuid import uuid4
+        from .io import read_json, save_json
+        directory = Path(directory)
+        if (directory / 'complete.json').exists():
+            yield
+            return
+        attempt = uuid4().hex
+        status = 'complete'
+        try:
+            yield
+        except BaseException as error:
+            status = type(error).__name__
+            raise
+        finally:
+            record = {**self.report(), 'attempt': attempt, 'status': status,
+                      'job': os.environ.get('SLURM_JOB_ID')}
+            save_json(directory / 'runtime-attempts' / (attempt + '.json'), record)
+            records = [read_json(p) for p in (directory / 'runtime-attempts').glob('*.json')]
+            phases = {}
+            for value in records:
+                for key, seconds in value['phase_seconds'].items():
+                    phases[key] = phases.get(key, 0.) + seconds
+            save_json(directory / 'runtime.json', {**record, 'attempt_count': len(records),
+                'cumulative_wall_seconds': sum(v['wall_seconds_this_process'] for v in records),
+                'cumulative_phase_seconds': phases})
 
     @contextmanager
     def phase(self, name):

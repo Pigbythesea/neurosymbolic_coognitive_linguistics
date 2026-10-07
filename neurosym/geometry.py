@@ -326,17 +326,26 @@ def trace_signature(group, record, view, prepared=None):
         if operation == relation_label:
             key = object_hash(operation)
             if key not in prepared['pairs']:
-                prepared['pairs'][key] = left_factor[mask] @ right_factor[mask].T / scale
+                shared = prepared.get('shared')
+                if shared is None:
+                    prepared['pairs'][key] = left_factor[mask] @ right_factor[mask].T / scale
+                else:
+                    # Numerical content, not merely the operation label, is
+                    # required: masks/factors can differ between repetitions.
+                    pair_key = ('pair', object_hash(mask.tolist()), scale,
+                                vector_digest(left_factor), vector_digest(right_factor))
+                    prepared['pairs'][key] = shared.get(pair_key,
+                        lambda: left_factor[mask] @ right_factor[mask].T / scale)
             pair = prepared['pairs'][key]
             la, ra = softmax(np.mean(left, 0)[mask]), softmax(np.mean(right, 0)[mask])
             return (la[:, None] * pair * ra[None]).reshape(-1)
     return None
 
 
-def prepare_trace(group):
+def prepare_trace(group, *, shared=None):
     return {'mask': group['site_mask'][()].astype(bool),
         'primitives': [(json.loads(child.attrs['description']), child['scores'][()]) for child in group['primitive'].values()],
-        'relations': None, 'pairs': {}}
+        'relations': None, 'pairs': {}, 'shared': shared}
 
 
 def vector_digest(vector):
@@ -351,23 +360,24 @@ def vector_digest(vector):
 
 
 def latent_index(path):
+    from .trace_store import iter_sources
     queries, sources = {}, defaultdict(list)
     with h5py.File(Path(path) / "traces.h5", "r") as file:
         if not file.attrs["complete"]:
             raise ValueError("Incomplete decoder evidence.")
-        for query_id, repeats in file.items():
-            values, source_ids = [], set()
-            for group in repeats.values():
-                source_ids.add(group.attrs["source_id"])
+        for source, groups in iter_sources(file):
+            by_query = defaultdict(list)
+            for query_id, _, group in groups:
+                if group.attrs['source_id'] != source:
+                    raise ValueError('A query trace crosses source units.')
                 if "latent" in group:
                     value = group["latent"][()]
                     if value.ndim != 1 or not np.isfinite(value).all():
                         raise ValueError("Invalid latent trace: " + query_id)
-                    values.append(value)
-            if len(source_ids) != 1:
-                raise ValueError("A query trace crosses source units.")
-            source = next(iter(source_ids))
-            if values:
+                    by_query[query_id].append(value)
+            for query_id, values in by_query.items():
+                if query_id in queries:
+                    raise ValueError('A query trace crosses source units.')
                 queries[query_id] = (source, np.mean(values, axis=0))
                 sources[source].append(query_id)
     return queries, sources
@@ -405,6 +415,7 @@ def latent_vectors(path, records, view, *, index=None):
 
 
 def trace_vectors(path, records, view):
+    from .trace_store import iter_sources
     if view in {"latent", "latent-passage"}:
         return latent_vectors(path, records, view)[0]
     if view != "grounding":
@@ -415,9 +426,8 @@ def trace_vectors(path, records, view):
     with h5py.File(Path(path) / "traces.h5", "r") as file:
         if not file.attrs["complete"]:
             raise ValueError("Incomplete decoder evidence.")
-        for repeats in file.values():
-            for group in repeats.values():
-                source = group.attrs["source_id"]
+        for source, groups in iter_sources(file):
+            for _, _, group in groups:
                 prepared = prepare_trace(group) if 'site_mask' in group and by_source[source] else None
                 for record in by_source[source]:
                     vector = trace_signature(group, record, view, prepared=prepared)
@@ -450,7 +460,7 @@ def implied_vectors(path, data, stories, component=None, *, device='cpu'):
     return result
 
 
-def run_geometry(data, options):
+def run_geometry(data, options, *, grounding_tables=None):
     split = partition(data.semantics, options["fold"])
     data.validate_partition(split["train"], test=split["test"])
     records = semantic_occurrences(data, split["test"], options["kind"], reviewed_only=options.get("reviewed_only", False),
@@ -497,7 +507,11 @@ def run_geometry(data, options):
             vectors = {(r["source_id"], r["item_id"]): sources[r["source_id"]] for r in records if r["source_id"] in sources}
         elif options["view"] in {"grounding", "latent", "latent-passage"}:
             if options["view"] == "grounding":
-                vectors = trace_vectors(options["from_run"], records, options["view"])
+                if grounding_tables is None:
+                    vectors = trace_vectors(options['from_run'], records, options['view'])
+                else:
+                    from .trace_geometry import VectorTable
+                    vectors = VectorTable(grounding_tables, records)
             else:
                 index = data.host_cache.get(('latent-index', options['parent_identity_hash']),
                     lambda: latent_index(options['from_run']))

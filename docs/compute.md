@@ -220,7 +220,8 @@ Current planning requests (not measured minima or certified admission limits):
 | GPU observed decoding | l40s/rtx6000/a100/h100/h200, 1 GPU, 6 CPU cores, 32 GiB, 4 h | 4 |
 | Explicit CPU encoding alternative | med, 8 cores, 128 GiB, 4 h | 8 |
 
-Profiles are independent: the three GPU profiles together permit ten GPU workers.
+Per-profile limits are additionally constrained by the shared project dispatcher
+cap of eight outstanding GPU tasks. Manual jobs require separate inspection.
 Encoding retains large raw response matrices; prepared decoding only loads its
 projectors/windows and public queries, so its host-memory request is smaller.
 The worker limit is up to nine related logical fits per process, preserving
@@ -276,6 +277,24 @@ remaining device hours and calendar time separately. No measured GPU speedup
 or defensible whole-program hour count is established yet.
 
 ## Remote handoff
+
+The 2026-10-07 trace optimization adds source-table storage, one-pass grounding
+reduction, committed fitted/prediction stages and cumulative decoder attempt
+timings. It retains scalar trace arithmetic and exact numerical deduplication:
+an experimental batched capture failed aggregation equivalence despite close
+individual arrays. HDF5 lexical field order is part of the compatibility check.
+See the current-position section of [ENGINEERING_HANDOFF.md](ENGINEERING_HANDOFF.md)
+for measured protocol-2 work; earlier unqualified/slow-epoch statements in this
+document are historical. No whole-study speedup is established by these new edits.
+
+Local integrated qualification is `call scripts\validate_trace_optimization.cmd`.
+It uses the imported actual fitted audit, then the existing packaging checks.
+Packaging rejects missing/stale real-trace qualification. After transfer, the
+researcher runs `qualify_trace.sbatch verify` with a GPU allocation, then its
+CPU `inspect`/`maintain` modes. Maintenance explicitly reuses compatible fits and
+removes only inventoried obsolete unfinished decoder tests. Old context traces
+remain references while their original weights produce the new compact outputs.
+No helper submits the full study or releases final-story evaluation.
 
 The researcher owns all remote operations:
 

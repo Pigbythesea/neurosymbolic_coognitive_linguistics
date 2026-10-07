@@ -601,7 +601,13 @@ def compare_encoding(first, second):
     a, b = read_json(first / "complete.json"), read_json(second / "complete.json")
     if any(r["identity"]["kind"] != "encoding" for r in (a, b)):
         raise ValueError("Paired encoding comparison requires two completed encoding runs.")
-    for key in ("semantic_build_hash", "data_contract_hash", "config", "code", "packages"):
+    from .fit_reuse import compatible_codes
+    # Fit reuse preserves old identities; it does not relabel arrays with the
+    # current code hash. Only the explicit qualified registry permits this pair.
+    root = first.resolve().parents[3]
+    if not compatible_codes(root, a['identity'], b['identity']):
+        raise ValueError('Paired encoding code versions are not qualified as compatible.')
+    for key in ("semantic_build_hash", "data_contract_hash", "config", "packages"):
         if a["identity"].get(key) != b["identity"].get(key):
             raise ValueError("Paired encoding run contracts differ: " + key)
     if a["partition"] != b["partition"] or a["identity"]["options"]["subject"] != b["identity"]["options"]["subject"]:

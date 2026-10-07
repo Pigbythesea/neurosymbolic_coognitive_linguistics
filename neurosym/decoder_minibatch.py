@@ -4,7 +4,7 @@ Packing is parameter-free. Batches are fixed by source IDs and a declared seed;
 their order is shuffled each epoch. AdamW steps once per batch. This is a new
 optimization protocol, not a promise to reproduce per-source AdamW trajectories.
 """
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from pathlib import Path
 import json
 import time
@@ -16,6 +16,36 @@ from torch.nn import functional as F
 from .decoder_batch import SourceProgram, choice_targets, choice_losses
 from .compute import atomic_torch_save
 from .runtime import deadline
+from .io import object_hash
+
+
+# Only immutable query programs are shared. Observations, targets, losses,
+# parameters, gradients and optimizer states never enter this resident cache.
+_PROGRAMS, _PROGRAM_BYTES = OrderedDict(), 0
+
+
+def packed_program(model, rows, owners):
+    global _PROGRAM_BYTES
+    namespace = getattr(model, 'program_namespace', None)
+    def build():
+        return SourceProgram(model, [r[0]['inputs'] for r in rows], owners)
+    if namespace is None:
+        return build()
+    key = (namespace, model.family, str(next(model.parameters()).device),
+           str(next(model.parameters()).dtype), object_hash(model.descriptors.vocabulary),
+           tuple((r[0]['query_id'], owner) for r, owner in zip(rows, owners, strict=True)))
+    if key in _PROGRAMS:
+        _PROGRAMS.move_to_end(key)
+        return _PROGRAMS[key]
+    program = build()
+    limit = model.source_program_budget // 2
+    if program.bytes <= limit:
+        while _PROGRAMS and _PROGRAM_BYTES + program.bytes > limit:
+            _, removed = _PROGRAMS.popitem(last=False)
+            _PROGRAM_BYTES -= removed.bytes
+        _PROGRAMS[key] = program
+        _PROGRAM_BYTES += program.bytes
+    return program
 
 
 def observations(model, values):
@@ -62,7 +92,7 @@ class PackedBatches:
                         # equal-story, equal-source, query-weighted objective,
                         # including the shorter last batch and repeated scans.
                         scale.append(steps / (len(counts) * counts[example['story_id']] * repeats * query_mass))
-            program = SourceProgram(model, [r[0]['inputs'] for r in rows], owners)
+            program = packed_program(model, rows, owners)
             targets = choice_targets([r[0] for r in rows], device)
             weights = targets['weights'] * torch.tensor(scale, device=device)
             self.bytes += program.bytes + sum(v.numel() * v.element_size() for v in targets.values())
@@ -110,16 +140,6 @@ def train_minibatches(data, model, examples, windows, *, identity, learning_rate
                      seed, validation=None, pairing=None, patience=None, checkpoint=None):
     from .decoder_fit import device_windows
     cfg, device = data.config['decoder'], next(model.parameters()).device
-    began = time.perf_counter()
-    windows = None if model.family == 'prior' else device_windows(windows, device)
-    train = PackedBatches(model, examples, windows, size=cfg['source_batch_size'], pairing=pairing)
-    valid = None
-    if validation:
-        valid = PackedBatches(model, validation[0], None if model.family == 'prior' else device_windows(validation[1], device), size=cfg['source_batch_size'])
-    packed_bytes = train.bytes + (valid.bytes if valid else 0)
-    if packed_bytes > model.source_program_budget:
-        raise MemoryError('Training plus validation query working set exceeds decoder.program_cache_mib.')
-    packing_seconds = time.perf_counter() - began
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=cfg['weight_decay'])
     rng, history = np.random.default_rng(seed), []
     best, best_state, best_epoch, stale, completed, pending = float('inf'), None, 0, 0, 0, None
@@ -135,6 +155,28 @@ def train_minibatches(data, model, examples, windows, *, identity, learning_rate
         history, best, best_state, best_epoch, stale, completed, pending = [saved[k] for k in
             ('history', 'best', 'best_state', 'best_epoch', 'stale', 'completed', 'pending')]
         print('DECODER RESUME completed_epochs=' + str(completed), flush=True)
+
+    # A finished checkpoint is also a stage boundary. Restoring it must not
+    # compile the entire training and validation program again for export.
+    if pending is None and (completed >= epochs or (validation and patience is not None and stale >= patience)):
+        if validation:
+            if best_state is None:
+                raise ValueError('Finished selection checkpoint has no selected parameters.')
+            model.load_state_dict(best_state)
+        return {'best_epoch': best_epoch if validation else epochs,
+                'best_validation_nll': best if validation else None,
+                'history': history, 'protocol': 'cross-source-v1', 'packing_seconds': 0.,
+                'restored_finished_checkpoint': True}
+    began = time.perf_counter()
+    windows = None if model.family == 'prior' else device_windows(windows, device)
+    train = PackedBatches(model, examples, windows, size=cfg['source_batch_size'], pairing=pairing)
+    valid = None
+    if validation:
+        valid = PackedBatches(model, validation[0], None if model.family == 'prior' else device_windows(validation[1], device), size=cfg['source_batch_size'])
+    packed_bytes = train.bytes + (valid.bytes if valid else 0)
+    if packed_bytes > model.source_program_budget:
+        raise MemoryError('Training plus validation query working set exceeds decoder.program_cache_mib.')
+    packing_seconds = time.perf_counter() - began
 
     def save(pending=None):
         if checkpoint:

@@ -15,9 +15,11 @@ from neurosym.io import object_hash, read_json
 MODULES = ["__init__", "io", "dataset", "extraction_inputs", "model_registry", "temporal", "extraction",
            "model_features", "graphs", "semantics", "semantic_queries", "semantic_records", "semantic_features",
            "analysis_data", "analysis_runs", "spatial", "decoders", "decoder_fit", "decoder_batch", "decoder_minibatch", "protocol", "study_jobs", "study_reports", "grounding_checks", "encoding", "encoding_support", "geometry",
-           "reviewed_archive", "reviewed_graph", "reviewed_queries", "reviewed_compile", "experiment_plan", "compute", "storage", "execution", "pca", "runtime"]
+           "reviewed_archive", "reviewed_graph", "reviewed_queries", "reviewed_compile", "experiment_plan", "compute", "storage", "execution", "pca", "runtime",
+           "trace_store", "trace_geometry", "decoder_stages", "fit_reuse"]
 EXECUTION_SCRIPTS = ['scripts/run_analysis.py', 'scripts/verify_compute.py', 'scripts/submit_analysis.py',
-                     'scripts/run_manifest_array.py', 'scripts/run_analysis_array.sbatch']
+                     'scripts/run_manifest_array.py', 'scripts/run_analysis_array.sbatch',
+                     'scripts/verify_trace_tables.py', 'scripts/adopt_protocol2_fits.py', 'scripts/cleanup_retired_decoder_tests.py']
 
 
 def main():
@@ -44,6 +46,10 @@ def main():
     if reviewed.get("verification_script_sha256") != hashlib.sha256((ROOT / "scripts/verify_reviewed_semantics.py").read_bytes()).hexdigest():
         raise ValueError("Reviewed-corpus verification procedure changed since its receipt.")
     from neurosym.execution import code_identity, execution_manifest
+    traces = read_json(ROOT / 'artifacts/trace-verification-cpu.json')
+    if (traces.get('status') != 'verified' or not traces.get('complete_samples') or
+            not traces.get('geometry_verified') or traces.get('code') != code_identity()):
+        raise ValueError('Verify compact traces and exact geometry aggregation against the real fitted audit before packaging.')
     compute = read_json(ROOT / 'artifacts/compute-verification-cpu.json')
     jobs = execution_manifest(data)
     if (compute.get('status') != 'verified' or compute.get('device') != 'cpu' or
@@ -74,7 +80,8 @@ def main():
               "manifests/frozen-models.lock.json", "docs/experiment_definitions.md",
               "docs/reviewed_downstream.md", "docs/encoding_support.md", 'docs/compute.md', 'configs/compute.json',
                'artifacts/compute-verification-cpu.json', 'artifacts/execution/latest.json', 'docs/CLUSTER_STATUS.md',
-              'docs/ENGINEERING_HANDOFF.md', 'docs/SCIENTIFIC_STATUS_HANDOFF.md',
+              'docs/ENGINEERING_HANDOFF.md', 'docs/SCIENTIFIC_STATUS_HANDOFF.md', 'artifacts/trace-verification-cpu.json',
+              'scripts/qualify_trace.sbatch', 'scripts/maintain_qualified_fits.sbatch',
               jobs_path.relative_to(ROOT).as_posix()]
     for name in shared:
         contents[name] = (ROOT / name).read_bytes()

@@ -7,20 +7,124 @@ Remote facts below come from researcher-supplied logs, not direct cluster access
 
 ## Current position
 
-**Data, model features and the existing analysis environment are on the cluster.
-Protocol 2 is implemented locally; it has not been packaged, transferred or
-qualified on CUDA. The full experiment has not been launched.** The researcher
-approved the claim-directed redesign: primary final-layer controls, descriptive
-intermediate-layer profiles, shared three-fold selection and cross-source
-minibatches. Scientific decisions are recorded in
-[SCIENTIFIC_STATUS_HANDOFF.md](SCIENTIFIC_STATUS_HANDOFF.md).
+**The trace/storage optimization passed integrated local checks, was installed
+by job 1026424, and passed real fitted-reference CUDA qualification in job 1026427.
+Selected production fits completed; the full experiment has not been launched.
+The selected complete exports and geometry panels finished in controller job
+1026940 (43:34); detailed GPU time, phase timing and final bytes await collection.** Scientific definitions, configurations,
+folds, optimizer steps and seeds remain unchanged in this optimization pass.
+Scientific decisions are recorded in [SCIENTIFIC_STATUS_HANDOFF.md](SCIENTIFIC_STATUS_HANDOFF.md).
 
-The latest four GPU timing tasks and CPU-prior task ended through cooperative
-checkpointed yields. They are partial production fits, not completed result
-panels. Slurm reports `FAILED` for exit 75; their explicit `ANALYSIS YIELDED`
-messages establish intentional continuation. Do not treat every exit 75 as safe
-without its log/checkpoint evidence. No full nested decoder fit has yet supplied
-an end-to-end runtime or final-output storage measurement.
+### Latest evidence and optimization boundary
+
+- Installation `1021945` and CUDA verification `1021947` completed. Controller
+  `1021961` completed 20 selected workers / 54 logical jobs in 42:33. Ordinary
+  refit epochs were about 4–7 seconds. These supersede the older timing table below.
+- Context trace workers 102 and 1220 each consumed about 108 allocated minutes
+  over four resumptions. Each finished its first seed and began exporting its
+  second. Completed trace files were about 5.0 and 5.6 GiB. Old `runtime.json`
+  reported only the last process, so its 546/663-second export phases were not
+  total export times. The subsequent bottleneck was export/derived work.
+- Allocated CPU job `1024054` collected the real fitted audit in about 62 seconds.
+  The researcher transferred `artifacts/trace-audit-1024054.zip`; all 286 embedded
+  file hashes were verified during local import. It contains actual weights,
+  windows, full predictions, two complete-source trace samples per system,
+  finished second-seed weights/checkpoints, installed source, and storage inventory.
+- A prototype batched capture passed per-array tolerance checks on all 570 sample
+  query executions, but failed exact geometry aggregation: one predicate changed
+  from three unique numerical signatures to two, shifting a mean coordinate by
+  about 1.65. This is **not** qualification of that prototype. The production
+  replacement preserves scalar trace arithmetic and HDF5 lexical field order;
+  no numerical rounding or new deduplication rule was adopted. `decoders.py` and
+  the training `decoder_batch.py` remain unchanged.
+- The first integrated local trace check stopped at the shared-reducer assertion.
+  Its reference accumulated signatures in annotation order, unlike the legacy and
+  optimized reducers' lexical query/repeat order. A targeted real-source diagnosis
+  (147 queries, 149 available source/items) found identical unique-signature counts
+  and bit-identical means when the reference used legacy order; the wrong order
+  caused differences up to 9.54e-7. The verifier now preserves legacy aggregation
+  order and explicitly checks signature counts without relaxing exact equality.
+  Evidence: `artifacts/trace-reducer-order-diagnostic.json`. The subsequent complete
+  local check and six-stage packaging passed; CUDA qualification also passed below.
+- Installation `1026424` completed in 11 seconds. CUDA qualification `1026427`
+  completed on RTX PRO 6000 in 20:37, testing all 570 real sample query executions
+  with zero array/probability differences from the original GPU traces. Signature
+  counts, legacy-ordered geometry means, cross-seed constant-program reuse and
+  fitted/prediction/source-block recovery passed. Peak allocated/reserved CUDA
+  memory was 196/232 MiB; process MaxRSS was about 6.30 GiB. These are sample
+  qualification peaks, not full worker budgets. The total time includes repeated
+  scalar/reference comparisons; compact exports took about 14.1/15.3 seconds per
+  two-source sample and occupied 2,492,704/7,839,453 bytes (model/brain).
+  Copied legacy subsets expand hard links, so their compression ratio must not
+  be extrapolated to full traces. Evidence: `artifacts/trace-verification-cuda-1026427.json`.
+- Before fit reuse, inspection of the helper found `execution.py` missing from its
+  allowed list of already qualified optimization changes. The corrected helper
+  supports `--installed-code`, imports the unchanged qualified installation, and
+  records its own SHA256 separately in the reuse registry. Transfer only the small
+  maintenance packet and run `maintain_qualified_fits.sbatch`; do not overwrite
+  installed code or alter numerical qualification receipts. The original bundled
+  `qualify_trace.sbatch inspect/maintain` invokes the older helper and will reject
+  this execution-module change. Read-only maintenance inspection `1026930`
+  completed in 10 seconds: 27 decoder fits, nine selection receipts and 27 encoding
+  fits are reusable; four finished decoder refits can be restored for optimized
+  export. Cleanup identified exactly nine retired test directories, 349,588,394
+  bytes. Maintenance `1026932` then completed in eight seconds: reuse was applied,
+  all four finished refits were restored, and all nine retired test directories
+  were removed with their metadata archived. Original current fits, reference
+  traces, encoding objects, data and caches were retained.
+- Selected production controller `1026940` completed in 43:34 with exit 0 and
+  `SELECTED WORKERS COMPLETE`; the researcher-reported queue was empty. Arrays:
+  preparation `1026943`, selection reuse `1026948`, decoder export/refit `1026953`
+  and continuation `1027029`, geometry `1027030`, `1027048`, `1027052`.
+  All six context decoder outputs and their six geometry panels are complete.
+  The first decoder array needed continuation, which the controller handled.
+  Accounting and cumulative fit runtimes/storage still need inspection; 43:34
+  includes reused work, scheduling and overlapping stages, and is not a cold-run
+  or full-study runtime estimate.
+
+Implemented and numerically qualified; fit reuse/cleanup completed, full throughput remains pending:
+
+1. `trace_store.py` stores shared source/repeat tables with explicit query-local
+   descriptor/operator membership, routing, masks, latents and composition steps.
+   GPU-to-host transfers are consolidated; original arithmetic and precision are
+   retained. Source/repeat blocks resume independently. Legacy files stay readable.
+2. `trace_geometry.py` reduces all requested grounding kinds/scopes in one source
+   pass. Exact numerical-signature deduplication and original ordering remain.
+   Pair-matrix reuse is keyed by actual factors/mask, with a 128 MiB resident cap.
+   Temporary source-vector tables survive yields and are removed after all panel
+   outputs finish; small reduction/support counts remain.
+3. `decoder_stages.py` commits weights/projector and prediction stages separately.
+   Export resumes skip training-window preparation and query packing. A finished
+   training checkpoint also returns before repacking. Parameter-free programs
+   can be reused across compatible actual fits; model tensors/gradients/targets
+   are excluded and resident program storage is bounded.
+4. Decoder runtime records now retain every attempt and cumulative phase/wall
+   seconds, including yields. Encoding/PCA and permutation/bootstrap definitions
+   were not redesigned in this pass; no additional speedup is claimed for them.
+5. `adopt_protocol2_fits.py` explicitly qualifies reuse against the pinned installed
+   protocol-2 manifest. Completed ordinary fits retain their original identities.
+   Measured context weights (including two finished refits whose export was
+   interrupted) can be imported with original weight hashes into new export runs.
+   Optimizer-in-progress checkpoints are never relabelled or imported.
+   Qualified existing PCA/window caches retain their original producer receipts;
+   new consumers can read them explicitly without copying or recomputing them.
+   Missing cache entries are generated under the new identity, never stamped
+   with the old producer code. Imported projectors must exactly match prepared
+   projectors before reusing their windows.
+6. `cleanup_retired_decoder_tests.py` targets only the nine inventoried unfinished
+   pre-protocol-2 decoder directories (349,588,394 bytes, about 333 MiB), after
+   fresh qualification, dependency and idle-job checks. It archives their JSON
+   provenance before deletion. Current fitted parents/traces, encoding objects,
+   source data and caches remain protected. These nine directories were removed
+   by researcher-run maintenance job `1026932`; no other deletion was authorized
+   or reported in this pass.
+
+The selected complete export/geometry path finished successfully on the cluster;
+its detailed accounting and full-study runtime/storage projection remain pending. The prior
+rough 200 GPU-hour estimate covered ordinary preparation/fitting/encoding only;
+it excluded expensive context export/geometry and queueing. Do not quote it as a
+full-study forecast. The eight-GPU several-day target remains unverified until
+complete new export/geometry and concurrent throughput are measured.
 
 ## Workspace, ownership, and operating rules
 
@@ -43,8 +147,8 @@ an end-to-end runtime or final-output storage measurement.
 
 ## Exact version to preserve
 
-Local implementation started from HEAD `39668387b0510004d5e4f4dfe6c40a23565d5ab1`.
-**Protocol 2 includes uncommitted changes. Cloning that HEAD alone is insufficient.**
+This optimization pass started from HEAD `742f1af2a544dfa18d2d4ab22a37211238c966a5`.
+**Optimization edits are uncommitted. Cloning that HEAD alone is insufficient.**
 Preserve the working tree and retain the older bundle as historical evidence.
 
 Current implementation centers on the three analysis/experiment/compute configs,
@@ -59,21 +163,26 @@ neurosym/study_reports.py
 neurosym/grounding_checks.py
 ```
 
-The following identities describe the **previous verified cluster installation**,
+Current qualified installation: `analysis_code/17181841f6fd955de63477a406143d2b31e739b4b7507d81846cc4860abe71ff`;
+development manifest `01b086932fdf03228e899b2e5c131e7514b46ba76d67b080245548837a2df61e`;
+ZIP SHA256 `224d371b89c38c3bd73580e9fbe702cef34fe20a8fee5ecc27be4b1e067489a7`.
+The local maintenance helper correction is newer than this immutable bundle;
+its separate transfer receipt pins the helper and the qualified installation.
+
+The following identities describe the **earlier verified cluster installation**,
 not the current working tree. The accepted semantic build itself is unchanged.
 
 | Identity | Previously installed value |
 |---|---|
 | Accepted semantic build | `9bce4af5463a57683ed375a8b0fdcbcb83620bce923624d7075bd0c4f4ac847f` |
-| `artifacts/analysis-source.zip` SHA256 | `887975589fdb38a2fd626b5556551319436504e1cc8cebdc7e58a358929cb0e7` |
-| Isolated analysis code directory | `analysis_code/87dbb953cf22ecba8dab1004d4290760f65ab21c3d38e4033a9a6fcdd73d21ea` |
-| Development manifest hash | `0febeb5b61465fd9e0311e2e7deca3f95bbdcb5da2dc485079270ccef4e2ed9d` |
-| Analysis configuration hash | `77dafd1fdc55ab4502b390a385671304a956c1335cc1bec3da5b45b4681bcedd` |
-| Compute configuration hash | `8805b3651a715e568305151fe3a9e46c50e77b5e8389cbc7bf5526bd2636eea2` |
-| Experiment definition hash | `b90d89f9131e821e133ad3f43965a789008af1ee79eb1f1b27bb56f2ba068596` |
+| `artifacts/analysis-source.zip` SHA256 | `ca7f8569ec31d301194c54e0c926e2401d03c4b54703cef63915eb96471bde88` |
+| Isolated analysis code directory | `analysis_code/cccd608df834c15bfa18b28005116be86465ae1da610973b2e33a2699f3e0b18` |
+| Development manifest hash | `0fdc388fef401ad513c9e2d853fc2601d4915711aaacf3b95534bfffcddde2c6` |
+| Analysis configuration hash | `f763fcb4ecd1bc35f3db61c8e1b0c59ac4fb867a5a51e3524bc8821ccf6f0b7c` |
+| Compute configuration hash | `99ef22a04ab211da887649c8ba18d2f2ab51c6458d911429ad36841145a6a124` |
+| Experiment definition hash | `10b298a1ce530f541eabb9aee376d042aff161139eaeb3bbe7a406294845940d` |
 
-That ZIP had 258 payload files and 89,708,425 bytes, as recorded in the previous
-handoff. The isolated code directory is packaged in the ZIP and installed
+The isolated code directory is packaged in the ZIP and installed
 on the cluster; it is not an unpacked local directory. The manifest is
 `artifacts/execution/<manifest-hash>/manifest.json`, also identified by
 `artifacts/execution/latest.json`.
@@ -84,7 +193,7 @@ identities, and transfer. Never relabel old checkpoints or receipts to force
 compatibility with new training code. Preserve them under their original identity.
 These optimization changes do not require reannotation or frozen-model extraction.
 
-## Implemented locally; verification boundary
+## Protocol-2 implementation record (qualification subsequently completed)
 
 - Source programs now support multiple observations in one tensor execution.
   Training packs 16 sources per AdamW step, precompiles train/validation query
@@ -125,7 +234,7 @@ for all four families (multi-source maxima approximately 2.39e-6 / 1.87e-7 /
 parameters and selection. Python 3.11 syntax and both phase dependency graphs
 passed. These checks do not validate convergence, full-array memory use or GPU
 throughput. The complete six-stage preparation and updated CUDA verification
-remain researcher-run requirements; old receipts do not certify protocol 2.
+were subsequently completed as recorded above; they do not certify the new trace optimization.
 Additional targeted checks passed trace/faithfulness export recovery on two
 complete real sources, streaming/compact geometry on 16 supported concepts,
 equal-story row scaling, and development semantic coverage (ten stories,
@@ -137,7 +246,7 @@ confirmed all 18 response files at expected sizes and five aligned model receipt
 22 metadata-verified files each: Qwen 3.5 9B base/post, OLMo 3 7B base/instruct,
 and Qwen 3.8 27B. This checks metadata/provenance, not a fresh full tensor rehash.
 
-## Latest cluster evidence
+## Earlier cluster evidence (superseded by the current-position section)
 
 | Job | Work | Last confirmed result |
 |---|---|---|
@@ -201,10 +310,12 @@ the new fit counts, or infer a 16-fold speedup from batch size.
 
 ## Storage and cleanup
 
-Latest allocated-node disk measurements: dataset 25 GiB, frozen features 47 GiB,
+Earlier allocated-node disk measurements: dataset 25 GiB, frozen features 47 GiB,
 Hugging Face model cache 115 GiB, analysis cache 2.7 GiB, and analysis outputs
 363 MiB: about 190 GiB across those paths, excluding environments and other
-directories. The shared lab filesystem previously had 8.9 TiB free; that is
+directories. The new audit measures **15,379,811,885 bytes (14.32 GiB)** under
+analysis outputs; the old 363 MiB figure is obsolete. Other directories were not
+remeasured by this trace audit. The shared lab filesystem previously had 8.9 TiB free; that is
 not a personal quota or reserved capacity.
 
 Protocol 2 development/final encoding operator-and-metric array arithmetic is
@@ -227,16 +338,30 @@ active ownership and the reproducibility/continuation requirements.
 
 ## Next engineering work, in order
 
-1. Run the integrated local command in Windows CMD:
-   **call scripts\prepare_analysis.cmd**. It verifies the complete accepted
-   corpus, current protocol/numerics/recovery/inventory and packages the bundle.
+1. Completed: run the integrated local command in Windows CMD:
+   **call scripts\validate_trace_optimization.cmd**. It compares the actual fitted
+   audit against the compact codec, same-device scalar execution, exact grounding
+   aggregation, cross-seed program reuse and stage recovery, then invokes the
+   existing six-stage preparation/package command. No synthetic observations are used.
    A pre-existing ZIP is not evidence that this command passed.
-2. After success, transfer the new ZIP, installer, update helper and generated
+2. Completed by job `1026424`: transfer the new ZIP, installer, update helper and generated
    transfer receipt. Inspect active project jobs first, then install only through
    the allocated-node update helper. Reuse the existing analysis environment and
    frozen model features. All paths remain in the project workspace.
-3. Run updated CUDA numerical qualification, then complete representative
-   production selection/refit and derived panels with the new manifest.
+3. Real fitted-reference CUDA qualification passed in `1026427`; maintenance
+   inspection/application passed in `1026930`/`1026932`. The next selected run
+   uses workers `100,101,102,1218,1219,1220,2308,2309,2310,2382,2383,2384` in
+   manifest `01b086932fdf03228e899b2e5c131e7514b46ba76d67b080245548837a2df61e`:
+   a checked dependency-closed set of 12 workers / 16 logical items, comprising
+   two preparation/selection chains, six context decoder outputs (three seeds
+   each for subject01 and Qwen27B layer64), and their six full geometry panels.
+   Four decoder weights are restored; two third-seed refits remain. A lightweight
+   allocated CPU controller dispatches 30-minute resumable worker arrays, with
+   up to two decoder GPUs and four geometry GPUs overlapping (at most six for
+   this selected DAG, still subject to the project-wide eight-GPU ceiling).
+   This selected run completed under controller `1026940` in 43:34; collect the
+   cumulative decoder runtimes, per-worker accounting, geometry sizes and cache
+   occupancy next. No new annotation or frozen-state extraction is required.
    Inspect packing size, optimizer steps, epoch/validation/checkpoint/export time,
    convergence, peak host/VRAM use and final bytes. Completed eligible outputs
    remain production results; these are not substitute-data experiments.

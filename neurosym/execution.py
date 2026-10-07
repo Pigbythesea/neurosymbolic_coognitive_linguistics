@@ -17,7 +17,8 @@ def code_identity():
               [*ANALYSIS_MODULES, 'experiment_plan.py']}
     result.update({n: file_hash(Path(__file__).resolve().parents[1] / n) for n in
                   ['scripts/run_analysis.py', 'scripts/verify_compute.py', 'scripts/submit_analysis.py',
-                   'scripts/run_manifest_array.py', 'scripts/run_analysis_array.sbatch']})
+                    'scripts/run_manifest_array.py', 'scripts/run_analysis_array.sbatch',
+                    'scripts/verify_trace_tables.py', 'scripts/adopt_protocol2_fits.py', 'scripts/cleanup_retired_decoder_tests.py']})
     return result
 
 

@@ -172,6 +172,22 @@ The shared annotation and query architecture can themselves induce learned simil
 
 The default manifest now includes these geometry parents, comparisons and reporting. A separate source co-occurrence geometry supplies a descriptive reference for shared narrative context; correlation with that reference is not statistical removal of co-occurrence confounding. Semantic coverage reports count actual items, stories, sources, query families and unresolved occurrences. Per-view reports separately mark insufficient support as unavailable. Full traces are retained for the primary structured context parents; other fitted weights and predictions remain reproducible without exporting every intermediate trace.
 
+**2026-10-07 trace optimization audit:** Grounding currently deduplicates identical
+numerical signatures within each source/item before averaging; this is distinct
+from the latent repeat/query averaging above. Exact floating-value deduplication
+can amplify otherwise tiny numerical or reduction-order differences by changing
+the weights of distinct signatures. An experimental compact/batched capture
+passed individual-array tolerances but changed one sampled predicate from three
+unique signatures to two, producing a substantial mean difference. That path
+was rejected. The replacement preserves the original scalar trace arithmetic,
+query-local descriptor/operator membership and HDF5 lexical field order, and
+requires explicit deduplication/aggregation verification on actual fitted data.
+No rounding, tolerance-based deduplication or semantic-identity replacement was
+silently introduced. Whether to redefine this numerical deduplication as a more
+stable semantic-profile measure remains a scientific decision, not an automatic
+runtime optimization. The current storage/resume/reuse changes do not alter the
+scientific questions, training protocol, splits, controls or inference units.
+
 ## 10. Current experimental defaults and generalization
 
 [configs/experiments.json](../configs/experiments.json) records the current full experiment definitions. It is an amendable plan, not evidence that those experiments have finished.

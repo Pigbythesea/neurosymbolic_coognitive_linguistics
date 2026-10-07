@@ -93,6 +93,7 @@ def make_decoder(data, examples, windows, projector, options, device):
                             site_mask=None if projector is None else projector.site_mask).to(device)
     model.source_program_budget = data.config['decoder'].get('program_cache_mib', 1024) * 2**20
     model.source_batch_size = data.config['decoder']['source_batch_size']
+    model.program_namespace = data.semantics.build_hash
     return model, vocabulary
 
 
@@ -117,10 +118,18 @@ def device_windows(windows, device):
     return DeviceWindows(windows, device)
 
 
-def evaluate(model, examples, windows, *, pairing=None, trace_file=None, probabilities=True, free_reserve_bytes=0):
+def evaluate(model, examples, windows, *, pairing=None, trace_file=None, probabilities=True, free_reserve_bytes=0,
+             trace_format='legacy'):
     model.eval()
     device = next(model.parameters()).device
     windows = None if model.family == 'prior' else device_windows(windows, device)
+    if trace_file is not None and trace_format == 'compact':
+        if pairing is not None or model.family != 'structured':
+            raise ValueError('Compact grounding traces require matched structured observations.')
+        from .trace_store import export
+        return export(model, examples, windows, trace_file, probabilities=probabilities, free_reserve_bytes=free_reserve_bytes)
+    if trace_format not in {'legacy', 'compact'}:
+        raise ValueError('Unknown trace format.')
     if trace_file is None and model.source_batched:
         from .decoder_minibatch import evaluate_batched
         return evaluate_batched(model, examples, windows, pairing=pairing, probabilities=probabilities,
@@ -462,19 +471,39 @@ def run_decoder(data, options):
     free_reserve = data.compute_config['storage']['minimum_free_gib'] * 2**30
     require_free_space(directory, 0, free_reserve)
     cfg = data.config["decoder"]
-    with exclusive_run(directory / "RUNNING.lock"):
+    with exclusive_run(directory / "RUNNING.lock"), timings.attempts(directory):
         if (directory / "complete.json").exists():
             return directory
-        selected_path = select_decoder(data, options)
-        selected = read_json(selected_path / 'complete.json')
-        learning_rate, epochs = selected['selected_learning_rate'], selected['refit_epochs']
-        write_report(directory / 'selection.json', {'parent': str(selected_path),
-            'selected_learning_rate': learning_rate, 'refit_epochs': epochs,
-            'null_policy': 'matched-settings training-correspondence ablation' if options.get('retrain_null') else None})
+        from .decoder_stages import load_fitted, commit_fitted, prediction_stage, attach_prepared_projector
+        restored = load_fitted(directory, identity, device, cfg)
+        if restored is None:
+            selected_path = select_decoder(data, options)
+            selected = read_json(selected_path / 'complete.json')
+            learning_rate, epochs = selected['selected_learning_rate'], selected['refit_epochs']
+            write_report(directory / 'selection.json', {'parent': str(selected_path),
+                'selected_learning_rate': learning_rate, 'refit_epochs': epochs,
+                'null_policy': 'matched-settings training-correspondence ablation' if options.get('retrain_null') else None})
+            with timings.phase('training_observation_preparation'):
+                projector = (None if options['family'] == 'prior' else
+                             data.projector(options['modality'], split['train'], **observation_options(options)))
+                train, windows, sources = examples_and_windows(data, split['train'], projector, options)
+            model, vocabulary = make_decoder(data, train, windows, projector, options, device)
+            pairing = mismatch_map(sources, cross_story=True) if options.get('retrain_null') else None
+            with timings.phase('refit'):
+                fit = train_decoder(data, model, train, windows, learning_rate=learning_rate, epochs=epochs,
+                                    seed=options['seed'], pairing=pairing, checkpoint=directory / 'refit.pt')
+            commit_fitted(directory, identity, model, projector, {
+                'family': model.family, 'shape': model.shape, 'vocabulary': vocabulary,
+                'hidden': model.hidden, 'parameters': sum(p.numel() for p in model.parameters()),
+                'training_stories': split['train'], 'training_source_ids': sorted(sources),
+                'site_mask': model.site_mask.cpu().numpy(), 'fit': fit,
+                'site_coordinates': ('none: query-only prior' if options['family'] == 'prior' else
+                    'Schaefer parcels' if options['modality'] == 'brain' else 'seeded model-coordinate groups, not anatomical regions')}, pairing)
+            del train, windows
+        else:
+            model, projector, pairing = restored
+            attach_prepared_projector(data, projector, options, split['train'])
         with timings.phase('observation_preparation'):
-            projector = (None if options['family'] == 'prior' else
-                         data.projector(options["modality"], split["train"], **observation_options(options)))
-            train, windows, sources = examples_and_windows(data, split["train"], projector, options)
             test, test_windows, test_sources = examples_and_windows(data, split["test"], projector, options)
         if "test_query_ids" in split:
             query_ids = set(split["test_query_ids"])
@@ -489,20 +518,6 @@ def run_decoder(data, options):
                 for examples in families.values():
                     for example in examples:
                         example["weight"] = 1 / (len(families) * len(examples))
-        model, vocabulary = make_decoder(data, train, windows, projector, options, device)
-        pairing = mismatch_map(sources, cross_story=True) if options.get("retrain_null") else None
-        with timings.phase('refit'):
-            fit = train_decoder(data, model, train, windows, learning_rate=learning_rate, epochs=epochs,
-                                seed=options["seed"], pairing=pairing, checkpoint=directory / 'refit.pt')
-        if projector is not None:
-            projector.save(directory / "projector")
-        torch.save(model.state_dict(), directory / "weights.pt")
-        write_report(directory / "decoder.json", {"family": model.family, "shape": model.shape, "vocabulary": vocabulary,
-                     "hidden": model.hidden, "parameters": sum(p.numel() for p in model.parameters()),
-                     "training_stories": split["train"], "training_source_ids": sorted(sources),
-                     "site_mask": model.site_mask.cpu().numpy(), "fit": fit,
-                     "site_coordinates": ('none: query-only prior' if options['family'] == 'prior' else
-                                          "Schaefer parcels" if options["modality"] == "brain" else "seeded model-coordinate groups, not anatomical regions")})
         if options.get('export_traces', options['family'] == 'structured' and not options.get('retrain_null')):
             with h5py.File(directory / 'traces.h5', 'a') as file:
                 if len(file) and file.attrs.get('run_identity') != object_hash(identity):
@@ -510,19 +525,17 @@ def run_decoder(data, options):
                 file.attrs.update(complete=False, semantic_build_hash=data.semantics.build_hash)
                 file.attrs['run_identity'] = object_hash(identity)
                 with timings.phase('heldout_predictions_and_traces'):
-                    rows = evaluate(model, test, test_windows, trace_file=file, free_reserve_bytes=free_reserve)
+                    rows = evaluate(model, test, test_windows, trace_file=file, free_reserve_bytes=free_reserve,
+                                    trace_format='compact')
                 file.attrs['complete'] = True
         else:
             with timings.phase('heldout_predictions'):
                 rows = evaluate(model, test, test_windows)
-        with gzip.open(directory / "predictions.jsonl.gz", "wt", encoding="utf-8", compresslevel=1) as file:
-            for row in rows:
-                file.write(json.dumps(row, ensure_ascii=False) + "\n")
+        rows = prediction_stage(directory, 'predictions', identity, lambda: rows)
         mismatch = mismatch_map(test_sources)
-        disrupted = evaluate(model, test, test_windows, pairing=mismatch)
-        with gzip.open(directory / "mismatched-predictions.jsonl.gz", "wt", encoding="utf-8", compresslevel=1) as file:
-            for row in disrupted:
-                file.write(json.dumps(row, ensure_ascii=False) + "\n")
+        with timings.phase('mismatched_predictions'):
+            disrupted = prediction_stage(directory, 'mismatched-predictions', identity,
+                lambda: evaluate(model, test, test_windows, pairing=mismatch))
         if options.get('faithfulness'):
             from .grounding_checks import faithfulness
             with timings.phase('grounding_faithfulness'):
@@ -541,8 +554,6 @@ def run_decoder(data, options):
                   "mismatch_scope": "Within-story nonoverlapping delayed windows. Model states retain shared earlier prefixes; retrained cross-story null is a separate run.",
                   "trace_scope": "Low-rank ordered-pair factors reconstruct all raw pair scores; invalid sites must be masked. Latents are comparable only within a fitted coordinate system."}
         write_report(directory / "complete.json", report)
-        write_report(directory / 'runtime.json', {**timings.report(), 'cache_hits': data.cache.hits,
-                                                 'cache_misses': data.cache.misses})
         (directory / 'refit.pt').unlink(missing_ok=True)
         (directory / 'faithfulness-progress.json').unlink(missing_ok=True)
     return directory

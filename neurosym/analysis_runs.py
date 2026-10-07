@@ -70,10 +70,11 @@ def composition_partition(dataset, split, keys):
 ANALYSIS_MODULES = ["analysis_runs.py", "analysis_data.py", "decoders.py", "decoder_fit.py", "decoder_batch.py", "decoder_minibatch.py", "protocol.py", "study_jobs.py", "study_reports.py", "grounding_checks.py",
                "encoding.py", "encoding_support.py", "geometry.py", "spatial.py", "semantic_features.py",
                "semantic_queries.py", "dataset.py", "model_features.py", "temporal.py", "reviewed_queries.py",
-               "reviewed_graph.py", "reviewed_archive.py", "reviewed_compile.py", "compute.py", "storage.py", "execution.py", "pca.py", "runtime.py"]
+               "reviewed_graph.py", "reviewed_archive.py", "reviewed_compile.py", "compute.py", "storage.py", "execution.py", "pca.py", "runtime.py",
+               "trace_store.py", "trace_geometry.py", "decoder_stages.py", "fit_reuse.py"]
 
 
-def run_directory(data, kind, options):
+def run_identity(data, kind, options):
     identity = {"format_version": 1, "kind": kind, "options": options,
                 "config": data.config, "semantic_build_hash": data.semantics.build_hash,
                 "spatial_hash": object_hash(data.spatial.identity),
@@ -87,6 +88,15 @@ def run_directory(data, kind, options):
     if options.get("comparison_support"):
         identity["comparison_model_alignments"] = {
             m["model"]: data.model(m["model"]).aligned_run for m in options["comparison_support"]["models"]}
+    return identity
+
+
+def run_directory(data, kind, options):
+    identity = run_identity(data, kind, options)
+    from .fit_reuse import reused_directory
+    reused = reused_directory(data.root, identity)
+    if reused is not None:
+        return reused
     directory = data.root / data.config["output"] / kind / object_hash(identity)
     immutable_json(directory / "identity.json", identity)
     return directory, identity
