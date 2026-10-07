@@ -25,7 +25,7 @@ from neurosym.decoders import SemanticDecoder, acceptable_loss, detached_trace, 
 from neurosym.decoder_fit import evaluate, mismatch_map, write_trace
 from neurosym.encoding import EncodingFeatures, GroupRidge
 from neurosym.encoding_support import EncodingSupport, comparison_spec
-from neurosym.geometry import cosine_rdm, rdm_comparison, trace_signature
+from neurosym.geometry import cosine_rdm, rdm_comparison, trace_signature, semantic_occurrences, latent_vectors
 from neurosym.io import object_hash
 from neurosym.io import read_json
 
@@ -101,9 +101,27 @@ def verify(build):
             break
     if not expected_ops <= set(selected):
         raise ValueError("Real compiled query coverage is insufficient for operator verification: " + str(expected_ops - set(selected)))
-    vocabulary = query_vocabulary(list(selected.values()))
+    # Capture every eligible question in a real multi-item unit as well as each
+    # operator. This exposes accidental source-wide latent broadcasting.
+    trace_examples = {x["query_id"]: x for x in selected.values()}
+    anchor_example = selected["role"]
+    trace_families = {q["id"]: q["family"] for q in data.semantics.records(anchor_example["story_id"], "queries")}
+    for example in data.semantics.decoder_examples(anchor_example["story_id"]):
+        if example["source_id"] == anchor_example["source_id"]:
+            trace_examples[example["query_id"]] = {**example, "story_id": anchor_example["story_id"],
+                                                     "family": trace_families[example["query_id"]]}
+    trace_examples = list(trace_examples.values())
+    vocabulary = query_vocabulary(trace_examples)
     coverage = {}
     grounding_checks = {}
+    latent_checks = {}
+    latent_records = []
+    if reviewed:
+        for kind in ("concept", "predicate", "literal", "role", "reference", "scope", "configuration",
+                     "discourse", "identity", "qualification", "state_update"):
+            latent_records.extend(semantic_occurrences(data, sorted({e["story_id"] for e in trace_examples}), kind))
+        trace_sources = {e["source_id"] for e in trace_examples}
+        latent_records = [r for r in latent_records if r["source_id"] in trace_sources]
     numerical_windows = {}
     cached_features = {"story_01": transformed}
     for family in ("prior", "linear", "mlp", "structured"):
@@ -144,8 +162,8 @@ def verify(build):
             coverage[family + "/" + op] = {"query_id": example["query_id"], "candidate_count": len(logits), "finite_gradient": True}
         with tempfile.TemporaryDirectory(dir=ROOT / "artifacts") as temporary:
             with h5py.File(Path(temporary) / "traces.h5", "w") as file:
-                predicted = evaluate(model, list(selected.values()), numerical_windows, trace_file=file)
-                if len(predicted) != len(selected) or decoder_metrics(predicted)["n_queries"] != len(selected):
+                predicted = evaluate(model, trace_examples, numerical_windows, trace_file=file)
+                if len(predicted) != len(trace_examples) or decoder_metrics(predicted)["n_queries"] != len(trace_examples):
                     raise AssertionError("Real query evaluation/repetition aggregation changed the query inventory.")
                 if family == "structured" and any("site_mask" not in group["0"] for group in file.values()):
                     raise AssertionError("Serialized spatial trace lost its observed-site mask.")
@@ -161,6 +179,33 @@ def verify(build):
                         if not signatures or any(len(s) != int(projector.site_mask.sum()) ** 2 or not np.isfinite(s).all() for s in signatures):
                             raise AssertionError("Real ordered grounding profile did not survive serialization: " + task)
                         grounding_checks[task] = len(signatures)
+                file.attrs["complete"] = True
+            if reviewed and family != "prior":
+                matched, audit = latent_vectors(temporary, latent_records, "latent")
+                passage, passage_audit = latent_vectors(temporary, latent_records, "latent-passage")
+                expected_by_source = {}
+                with h5py.File(Path(temporary) / "traces.h5", "r") as file:
+                    for query_id, groups in file.items():
+                        expected_by_source.setdefault(groups["0"].attrs["source_id"], {})[query_id] = groups["0"]["latent"][()]
+                matched_sets = set()
+                for record, row, passage_row in zip(latent_records, audit["source_items"], passage_audit["source_items"], strict=True):
+                    source, item = record["source_id"], record["item_id"]
+                    observed_queries = expected_by_source[source]
+                    expected_ids = sorted({q for link in record["latent_links"] for q in link["query_ids"] if q in observed_queries})
+                    if row["selected_query_ids"] != expected_ids or passage_row["selected_query_ids"] != sorted(observed_queries):
+                        raise AssertionError("Latent aggregation used another item's queries or lost the passage view")
+                    if bool(expected_ids) != ((source, item) in matched):
+                        raise AssertionError("Missing item latent was imputed from its passage")
+                    if expected_ids and not np.allclose(matched[(source, item)], np.mean([observed_queries[q] for q in expected_ids], 0)):
+                        raise AssertionError("Item-matched latent arithmetic differs from serialized real-query traces")
+                    if not np.allclose(passage[(source, item)], np.mean(list(observed_queries.values()), 0)):
+                        raise AssertionError("Passage latent arithmetic differs from serialized real-query traces")
+                    if source == anchor_example["source_id"] and expected_ids:
+                        matched_sets.add(tuple(expected_ids))
+                if len(matched_sets) < 2:
+                    raise AssertionError("Real verification unit lacks distinct item/query associations")
+                latent_checks[family] = {"source_items": len(latent_records), "available_matched": len(matched),
+                                         "available_passage": len(passage), "distinct_query_sets_in_same_unit": len(matched_sets)}
         try:
             model.answer(None, {**next(iter(selected.values()))["inputs"], "answer": "forbidden"})
         except ValueError:
@@ -197,14 +242,19 @@ def verify(build):
                             "observed_parcels": len(np.unique(assignment[assignment >= 0]))}
     for relative in ["analysis_data.py", "analysis_runs.py", "decoders.py", "decoder_fit.py", "encoding.py", "encoding_support.py", "geometry.py", "spatial.py"]:
         ast.parse((ROOT / "neurosym" / relative).read_text(encoding="utf-8"), feature_version=(3, 11))
-    from package_analysis import MODULES
-    verified_files = [f"neurosym/{name}.py" for name in MODULES] + ["scripts/run_analysis.py", "scripts/verify_analysis.py", "scripts/verify_encoding_support.py"]
+    from package_analysis import MODULES, EXECUTION_SCRIPTS
+    from neurosym.experiment_plan import experiment_plan
+    plan = experiment_plan(data)
+    write_report(ROOT / "artifacts/experiment-plan.json", plan)
+    verified_files = [f"neurosym/{name}.py" for name in MODULES] + EXECUTION_SCRIPTS + ["scripts/verify_analysis.py", "scripts/verify_encoding_support.py"]
     return {"status": "verified", "semantic_build_hash": data.semantics.build_hash,
             "config_hash": object_hash(data.config),
+            "experiment_definition_hash": plan["definition_hash"],
             "verified_code_sha256": {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in verified_files},
             "annotation_protocols": sorted({s["annotation_protocol"] for s in sources.values()}),
             "partial_annotations": data.partial, "real_query_execution": coverage,
             "real_grounding_pair_profiles": grounding_checks,
+            "real_latent_aggregation": latent_checks,
             "group_ridge_max_primal_dual_error": float(np.max(np.abs(first - second))),
             "mse_sufficient_statistic_error": float(abs(exact - moments)), "spatial": spatial,
             "encoding_valid_rows_story01": int(mask.sum()),

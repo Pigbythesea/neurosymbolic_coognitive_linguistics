@@ -5,11 +5,15 @@ import numpy as np
 from scipy import linalg
 
 from .dataset import DenizReader
+from .compute import FoldCache, source_identity
+from .storage import ResidentCache
 from .extraction_inputs import checked_index, checked_story
 from .io import object_hash, read_json
 from .model_features import FrozenFeatureReader
-from .semantic_features import SemanticDataset
+from .semantic_features import SemanticDataset, freeze_descriptor
 from .spatial import SpatialView
+from .pca import fit_statistics, story_statistics, transform_gpu
+from .runtime import deadline
 
 
 def latest(directory):
@@ -26,6 +30,10 @@ class SiteProjector:
         self.components = int(components)
         self.sites = int(self.assignment.max()) + 1
         self.parameters = []
+
+    @property
+    def nbytes(self):
+        return self.assignment.nbytes + sum(v.nbytes for group in self.parameters for v in group)
 
     def fit(self, observations, training_stories):
         values = np.asarray(observations, dtype=np.float64)
@@ -65,12 +73,14 @@ class SiteProjector:
             raise ValueError("Projector has not been fitted.")
         return np.array([p[3].shape[1] > 0 for p in self.parameters])
 
-    def transform(self, values):
+    def transform(self, values, *, device='cpu', batch_sites=16):
         values = np.asarray(values)
         if values.ndim != 2 or values.shape[1] != len(self.assignment) or not np.isfinite(values).all():
             raise ValueError("Projector input is missing, nonfinite or has another coordinate system.")
         if len(self.parameters) != self.sites:
             raise ValueError("Projector has not been fitted.")
+        if str(device).startswith('cuda'):
+            return transform_gpu(self, values, device=device, batch_sites=batch_sites)
         result = np.zeros((len(values), self.sites, self.components), dtype=np.float32)
         for site, (positions, mean, scale, vectors) in enumerate(self.parameters):
             result[:, site, :vectors.shape[1]] = ((values[:, positions] - mean) / scale) @ vectors
@@ -102,7 +112,7 @@ class SiteProjector:
 
 
 class AnalysisData:
-    def __init__(self, root, config_path=None, build=None, *, allow_partial=False):
+    def __init__(self, root, config_path=None, build=None, *, allow_partial=False, require_prepared=False):
         self.root = Path(root).resolve()
         self.config = read_json(Path(config_path) if config_path else self.root / "configs/analysis.json")
         self.semantics = SemanticDataset(Path(build) if build else latest(self.root / self.config["semantics"]))
@@ -118,6 +128,27 @@ class AnalysisData:
         if self.index["content_hash"] != self.semantics.identity["corpus_hash"]:
             raise ValueError("Analysis corpus differs from semantic build.")
         self._brain, self._models, self._states = {}, {}, {}
+        self.compute_config = read_json(self.root / 'configs/compute.json')
+        policy = self.compute_config['storage']
+        if policy['encoding_output'] != 'response-operators-fp64':
+            raise ValueError('Unsupported encoding storage representation.')
+        self.cache = FoldCache(self.root / 'data/processed/analysis-cache-v2', require=require_prepared, policy=policy)
+        self.host_cache = ResidentCache(policy['host_reuse_gib'] * 2**30)
+        self.raw_cache = ResidentCache(policy['raw_reuse_gib'] * 2**30)
+        self.device_caches = {}
+        self._cache_identities = {}
+
+    def resident(self, device='cpu'):
+        if device == 'cpu':
+            return self.host_cache
+        if device not in self.device_caches:
+            self.device_caches[device] = ResidentCache(self.compute_config['storage']['device_reuse_gib'] * 2**30)
+        return self.device_caches[device]
+
+    def cache_identity(self, model=None):
+        if model not in self._cache_identities:
+            self._cache_identities[model] = source_identity(self, model)
+        return self._cache_identities[model]
 
     def validate_partition(self, train, validation=(), test=()):
         sets = [set(train), set(validation), set(test)]
@@ -130,7 +161,7 @@ class AnalysisData:
 
     def brain(self, subject, story):
         key = subject, story
-        if key not in self._brain:
+        def read():
             spec = self.reader.contract["subjects"][subject][story]
             relative = f"responses/{subject}_reading_fmri_data_{spec['split']}.hdf"
             path = self.reader.root / relative
@@ -140,8 +171,8 @@ class AnalysisData:
             values = self.reader.response(subject, story)
             if not np.isfinite(values).all():
                 raise ValueError("Actual responses include nonfinite measurements.")
-            self._brain[key] = values
-        return self._brain[key]
+            return values
+        return self.raw_cache.get(('brain', *key), read)
 
     def model(self, model):
         if model not in self._models:
@@ -157,39 +188,90 @@ class AnalysisData:
 
     def states(self, model, layer, story):
         key = model, layer, story
-        if key not in self._states:
-            self._states[key] = self.model(model).events(story, layer, kind="units")
-        return self._states[key]
+        return self.raw_cache.get(('model', *key), lambda: self.model(model).events(story, layer, kind='units'))
+
+    def response(self, subject, story, section=slice(None)):
+        """Share bounded raw recordings across voxel blocks and related fits."""
+        return self.brain(subject, story)[:, :, section]
 
     def projector(self, modality, train, *, subject=None, model=None, layer=None):
         self.validate_partition(train)
+        identity = {'inputs': self.cache_identity(model), 'modality': modality, 'subject': subject,
+                    'model': model, 'layer': layer, 'train': list(train),
+                    'components': self.config['components_per_site'],
+                    'coordinate_groups': self.config['model_coordinate_groups'],
+                    'coordinate_seed': self.config['coordinate_partition_seed'],
+                    'preparation': self.compute_config['preparation']}
+        def build(path):
+            self._fit_projector(modality, train, subject=subject, model=model, layer=layer).save(path)
+        def load():
+            path = self.cache.entry('projector', identity, build)
+            result = SiteProjector.load(path)
+            result.cache_identity = identity
+            return result
+        return self.host_cache.get(('projector', object_hash(identity)), load)
+
+    def _fit_projector(self, modality, train, *, subject=None, model=None, layer=None):
         if modality == "brain":
             assignment = self.spatial.assignments(subject)
-            values = np.concatenate([self.brain(subject, s).reshape(-1, len(assignment)) for s in train])
         elif modality == "model":
-            arrays = [self.states(model, layer, s)[:len(self.semantics.records(s, "sources"))] for s in train]
-            values = np.concatenate(arrays)
-            groups = min(self.config["model_coordinate_groups"], values.shape[1])
-            order = np.random.default_rng(self.config["coordinate_partition_seed"]).permutation(values.shape[1])
-            assignment = np.empty(values.shape[1], dtype=np.int32)
-            assignment[order] = np.arange(values.shape[1]) % groups
+            width = self.states(model, layer, train[0]).shape[1]
+            groups = min(self.config["model_coordinate_groups"], width)
+            order = np.random.default_rng(self.config["coordinate_partition_seed"]).permutation(width)
+            assignment = np.empty(width, dtype=np.int32)
+            assignment[order] = np.arange(width) % groups
         else:
             raise ValueError("Unknown observed representation modality.")
-        return SiteProjector(assignment, self.config["components_per_site"]).fit(values, train)
+        prep = self.compute_config['preparation']
+        def statistics():
+            for story in train:
+                deadline.check()
+                identity = {'inputs': self.cache_identity(model), 'modality': modality, 'subject': subject,
+                    'model': model, 'layer': layer, 'story': story, 'partition': object_hash(assignment.tolist()),
+                    'preparation': prep}
+                def build():
+                    values = (self.brain(subject, story).reshape(-1, len(assignment)) if modality == 'brain' else
+                              self.states(model, layer, story)[:len(self.semantics.records(story, 'sources'))])
+                    return story_statistics(values, assignment, device=prep['device'], batch_sites=prep['batch_sites'])
+                yield self.host_cache.get(('pca-story-statistics', object_hash(identity)),
+                    lambda: self.cache.arrays('pca-story-statistics', identity, build))
+        return fit_statistics(SiteProjector(assignment, self.config['components_per_site']),
+            statistics(), train, device=prep['device'], eigensolver=prep['eigensolver'])
 
     def windows(self, modality, story, projector, *, subject=None, model=None, layer=None):
         """Source -> repetitions x sites x ordered samples x local components."""
+        if not hasattr(projector, 'cache_identity'):
+            return self._windows(modality, story, projector, subject=subject, model=model, layer=layer)
+        identity = {'projector': projector.cache_identity, 'story': story,
+                    'modality': modality, 'subject': subject, 'model': model, 'layer': layer}
+        def build(path):
+            from .io import save_json
+            windows = self._windows(modality, story, projector, subject=subject, model=model, layer=layer)
+            if not windows:
+                raise ValueError('No actual eligible observations in ' + story)
+            save_json(path / 'sources.json', list(windows))
+            np.save(path / 'windows.npy', np.stack(list(windows.values())), allow_pickle=False)
+        def load():
+            path = self.cache.entry('windows', identity, build)
+            keys = read_json(path / 'sources.json')
+            values = np.load(path / 'windows.npy', allow_pickle=False)
+            return dict(zip(keys, values, strict=True))
+        return self.host_cache.get(('windows', object_hash(identity)), load)
+
+    def _windows(self, modality, story, projector, *, subject=None, model=None, layer=None):
         sources = self.semantics.records(story, "sources")
         result = {}
         if modality == "brain":
             response = self.brain(subject, story)
-            transformed = np.stack([projector.transform(r) for r in response])
+            prep = self.compute_config['preparation']
+            transformed = np.stack([projector.transform(r, device=prep['device'], batch_sites=prep['batch_sites']) for r in response])
             for source in sources:
                 if source["decoder_timing_eligible"]:
                     rows = source["decoder_trimmed_response_rows"]
                     result[source["id"]] = transformed[:, rows].transpose(0, 2, 1, 3)
         elif modality == "model":
-            transformed = projector.transform(self.states(model, layer, story))
+            prep = self.compute_config['preparation']
+            transformed = projector.transform(self.states(model, layer, story), device=prep['device'], batch_sites=prep['batch_sites'])
             for source in sources:
                 if source["decoder_timing_eligible"]:
                     result[source["id"]] = transformed[source["model_unit_row"]][None, :, None, :]
@@ -204,6 +286,7 @@ class AnalysisData:
             # Validated catalog objects are shared read-only by this analysis.
             # Do not retain a separate large prefix catalog for every question.
             example["inputs"]["candidates"] = self.semantics.candidate_sets[query["input"]["candidate_set"]]
+            example['inputs'] = freeze_descriptor(example['inputs'])
             yield {**example, "story_id": story, "family": query["family"]}
 
     def story(self, story):

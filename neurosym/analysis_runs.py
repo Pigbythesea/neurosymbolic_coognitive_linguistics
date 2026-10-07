@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .io import immutable_json, object_hash, save_json
+from .io import immutable_json, object_hash, read_json, save_json
 
 
 def partition(dataset, fold):
@@ -67,18 +67,21 @@ def composition_partition(dataset, split, keys):
     return result
 
 
-def run_directory(data, kind, options):
-    modules = ["analysis_runs.py", "analysis_data.py", "decoders.py", "decoder_fit.py",
+ANALYSIS_MODULES = ["analysis_runs.py", "analysis_data.py", "decoders.py", "decoder_fit.py",
                "encoding.py", "encoding_support.py", "geometry.py", "spatial.py", "semantic_features.py",
                "semantic_queries.py", "dataset.py", "model_features.py", "temporal.py", "reviewed_queries.py",
-               "reviewed_graph.py", "reviewed_archive.py", "reviewed_compile.py"]
+               "reviewed_graph.py", "reviewed_archive.py", "reviewed_compile.py", "compute.py", "storage.py", "execution.py", "pca.py", "runtime.py"]
+
+
+def run_directory(data, kind, options):
     identity = {"format_version": 1, "kind": kind, "options": options,
                 "config": data.config, "semantic_build_hash": data.semantics.build_hash,
                 "spatial_hash": object_hash(data.spatial.identity),
                 "data_contract_hash": object_hash(data.reader.contract), "partial_annotations": data.partial,
+                "experiment_definition_hash": object_hash(read_json(data.root / "configs/experiments.json")),
                 "packages": {name: importlib.metadata.version(name) for name in ("numpy", "scipy", "h5py", "torch", "nibabel", "pydantic")},
                 "code": {name: hashlib.sha256((Path(__file__).parent / name).read_bytes()).hexdigest()
-                         for name in modules}}
+                         for name in ANALYSIS_MODULES}}
     if options.get("model"):
         identity["model_alignment"] = data.model(options["model"]).aligned_run
     if options.get("comparison_support"):
@@ -133,13 +136,21 @@ def decoder_metrics(rows):
         story_values[story].append({k: sum(w * v[k] for w, v in values) / total for k in ("correct", "nll", "chance")})
     by_story = {s: {k: float(np.mean([v[k] for v in vals])) for k in ("correct", "nll", "chance")}
                 for s, vals in story_values.items()}
+    for values in by_story.values():
+        values["accuracy_minus_chance"] = values["correct"] - values["chance"]
     by_family = defaultdict(lambda: defaultdict(list))
     for (story, _, family), vals in families.items():
-        by_family[family][story].append(float(np.mean([v["correct"] for v in vals])))
+        by_family[family][story].append({k: float(np.mean([v[k] for v in vals])) for k in ("correct", "nll", "chance")})
+    family_stories = {family: {story: {k: float(np.mean([v[k] for v in values])) for k in ("correct", "nll", "chance")}
+                              for story, values in stories.items()} for family, stories in by_family.items()}
+    for stories in family_stories.values():
+        for values in stories.values():
+            values["accuracy_minus_chance"] = values["correct"] - values["chance"]
     return {"stories": by_story,
             "story_macro": {k: float(np.mean([v[k] for v in by_story.values()])) if by_story else None
-                            for k in ("correct", "nll", "chance")},
-            "family_story_macro_accuracy": {f: float(np.mean([np.mean(v) for v in stories.values()]))
-                                            for f, stories in by_family.items()},
+                            for k in ("correct", "nll", "chance", "accuracy_minus_chance")},
+            "family_stories": family_stories,
+            "family_story_macro_accuracy": {f: float(np.mean([v["correct"] for v in stories.values()]))
+                                            for f, stories in family_stories.items()},
             "n_stories": len(by_story), "n_sources": len(sources), "n_queries": len(queries),
             "n_repeat_predictions": len(rows), "inference_unit": "story and participant, not question"}

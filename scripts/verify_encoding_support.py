@@ -38,7 +38,7 @@ def verify(data=None):
     baselines = {name: EncodingFeatures(data, ["story_02"], ["presentation"], support=supports[name])
                  for name in profiles}
     expected_totals, design_checks, granularity = Counter(), 0, {g: Counter() for g in SEMANTIC_GROUPS}
-    saved_rows = {}
+    saved_rows, marginal_checks = {}, 0
     for story in stories:
         timing = read_json(data.semantics.build / "stories" / story / "timing.json")
         alignment = read_json(data.root / "data/processed/alignment/stories" / (story + ".json"))
@@ -47,6 +47,25 @@ def verify(data=None):
         # repeating the compiled masks or using generated test observations.
         raw = {g: list(timing["known_raw_rows"]) for g in SEMANTIC_GROUPS}
         for feature in data.semantics.records(story, "features"):
+            # Independently project the structural columns onto three unbound
+            # marginals. Every repeated incidence contributes, including an old
+            # referent absent from introduction-based C.
+            expected_bag, actual_bag = Counter(), Counter()
+            for key, count in feature["terms"].items():
+                definition = data.semantics.definitions[key]
+                group, parts = definition["group"], definition["parts"]
+                if group in {"PB", "PBR"}:
+                    _, predicate, role, filler = parts
+                    reference = group == "PBR"
+                    for atom in (["predicate", predicate, reference], ["role", role, reference],
+                                 ["filler", filler, reference]):
+                        expected_bag[object_hash(atom)] += count
+                elif group == "BC":
+                    actual_bag[object_hash(parts)] += count
+            require(actual_bag == expected_bag, "Unbound content differs from the binding constituents: " + feature["source_id"])
+            uncertain = set(feature["uncertain_groups"])
+            require(("BC" in uncertain) == bool(uncertain & {"PB", "PBR"}), "Binding/control uncertainty differs")
+            marginal_checks += 1
             slot = sources[feature["source_id"]]["raw_feature_bin"]
             present = {data.semantics.definitions[k]["group"] for k in feature["terms"]}
             for group in feature["uncertain_groups"]:
@@ -121,6 +140,7 @@ def verify(data=None):
     return {"status": "verified", "semantic_build_hash": data.semantics.build_hash,
             "config_hash": object_hash(data.config), "verification_script_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             "stories": len(stories), "response_rows": sum(saved_rows.values()), "paired_real_design_checks": design_checks,
+            "matched_binding_marginal_checks": marginal_checks,
             "retained_by_comparison": dict(expected_totals), "comparisons": reports,
             "all_group_robustness": strict.report(stories),
             "within_group_uncertainty_audit": {g: dict(v) for g, v in granularity.items()},

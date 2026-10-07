@@ -28,11 +28,14 @@
       "binding": ["presentation", "C", "B", "BR"],
       "general-binding": ["presentation", "C", "GB", "GBR"],
       "predicate-binding": ["presentation", "C", "PB", "PBR"],
+      "matched-binding": ["presentation", "C", "BC", "PB", "PBR"],
+      "matched-general-binding": ["presentation", "C", "BC", "GB", "GBR"],
+      "matched-scoped-binding": ["presentation", "C", "BC", "B", "BR"],
       "reference": ["presentation", "C", "R"],
       "scope": ["presentation", "C", "S"],
       "discourse": ["presentation", "C", "D"],
       "state": ["presentation", "C", "U"],
-      "joint": ["presentation", "L", "C", "B", "BR", "GB", "GBR", "PB", "PBR", "R", "S", "D", "U"]
+      "joint": ["presentation", "L", "C", "BC", "B", "BR", "GB", "GBR", "PB", "PBR", "R", "S", "D", "U"]
     }
   }
 }

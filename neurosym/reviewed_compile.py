@@ -17,7 +17,7 @@ from .reviewed_queries import compile_reviewed_queries
 from .semantics import digest_file, verify_build, write_jsonl, compilation_report_html
 from .temporal import checked_alignment
 
-GROUPS = ("L", "C", "B", "BR", "GB", "GBR", "PB", "PBR", "R", "S", "D", "U")
+GROUPS = ("L", "C", "BC", "B", "BR", "GB", "GBR", "PB", "PBR", "R", "S", "D", "U")
 
 
 def source_record(story, unit, unit_index, saved, alignment):
@@ -113,6 +113,13 @@ def compile_features(history, current, source):
                     uncertain += [{"id": identity + ":null_argument:" + str(position)}]
                 filler = history.concept(target) if target else {"unknown": True}
                 ordered.append({"role": role, "position": position, "filler": filler})
+                # Marginals of the SAME argument incidences as PB/PBR. No atom
+                # binds a predicate, role and filler together. Counts and the
+                # reference channel are retained, so these cannot explain the
+                # gain from adding their categorical conjunctions.
+                for atom in (["predicate", concept, reference], ["role", role, reference],
+                             ["filler", filler, reference]):
+                    emit("BC", atom, deps, uncertain=uncertain)
                 emit("B", ["predicate_role", concept, role], [identity], uncertain=warnings)
                 emit(group, ["typed_binding", concept, role, filler], deps, uncertain=uncertain)
                 emit(group, ["scoped_binding", concept, role, filler, scope], deps, uncertain=scope_warnings + uncertain)
@@ -172,6 +179,44 @@ def compile_features(history, current, source):
             "uncertain_groups": sorted(unknown_groups)}, definitions, occurrences
 
 
+def attach_latent_queries(history, occurrences, queries):
+    """Link each item to its own public retrieval query, never to its neighbours.
+
+    Links are analysis provenance only; no target or answer is added to decoder
+    inputs. Missing alternatives/queries stay missing, with no passage fallback.
+    """
+    lookup = defaultdict(list)
+    for query in queries:
+        ast = query["input"]["ast"]
+        lookup[object_hash([ast["task"], ast["anchor"], ast["operation"]])].append(query["id"])
+    tasks = {"concept": "concept", "predicate": "concept", "literal": "concept",
+             "scope": "scope", "role": "role", "reference": "reference",
+             "configuration": "binding", "discourse": "relation", "identity": "identity",
+             "qualification": "qualifier", "state_update": "property"}
+    for record in occurrences:
+        node, kind = record["node"], record["kind"]
+        task = "reference" if record["view"] == "reference_resolved" else tasks[kind]
+        if task in {"concept", "reference"}:
+            anchor = history.selector(node, content=False)
+            operation = {"op": "concept_label" if task == "concept" else "reference"}
+        elif task in {"scope", "binding"}:
+            anchor = history.selector(node)
+            operation = {"op": "scoped_expression" if task == "scope" else "ordered_role_assignment"}
+        elif task in {"relation", "identity"}:
+            grounding = record["grounding_query"]
+            anchor = {"source": grounding["anchor"], "target": grounding["filler"]}
+            operation = ({"op": "relation_type", "direction": "source_to_target"} if task == "relation"
+                         else {"op": "scoped_identity"})
+        else:
+            grounding = record["grounding_query"]
+            anchor, operation = grounding["anchor"], grounding["operation"]
+        record["latent_query_link"] = {
+            "policy": "same_occurrence_public_query_v1", "task": task,
+            "query_ids": sorted(set(lookup.get(object_hash([task, anchor, operation]), []))),
+            "selection": "annotation occurrence and query identity; independent of prediction correctness"}
+        record["id"] = object_hash({k: v for k, v in record.items() if k != "id"})
+
+
 def compile_reviewed(root, config_path):
     root, config = Path(root).resolve(), read_json(config_path)
     archive = ReviewedArchive(root, config)
@@ -217,6 +262,7 @@ def compile_reviewed(root, config_path):
             source = source_record(story, story["units"][i], i, saved, alignment)
             feat, defs, occ = compile_features(history, current, source)
             qs, ans, private, skipped = compile_reviewed_queries(history, current, source, config["candidate_seed"])
+            attach_latent_queries(history, occ, qs)
             definitions.update(defs); skips.update(skipped)
             for q in qs:
                 candidates = q["input"].pop("candidates")

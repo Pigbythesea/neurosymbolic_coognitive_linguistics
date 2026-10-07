@@ -1,0 +1,55 @@
+{
+  "format_version": 1,
+  "description": "Execution defaults for the full research program; amendments are versioned, not prohibited.",
+  "subjects": ["subject01", "subject02", "subject03", "subject04", "subject05", "subject06", "subject07", "subject08", "subject09"],
+  "development_folds": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"],
+  "final_fold": "final",
+  "seeds": [11, 29, 47],
+  "models": ["qwen35-9b-base", "qwen35-9b-post", "olmo3-7b-base", "olmo3-7b-instruct", "qwen38-27b"],
+  "primary_layer": "final",
+  "descriptive_layer_fractions": [0.25, 0.5, 0.75, 1.0],
+  "encoding_contrasts": [
+    {"comparison": "concepts", "baseline": ["presentation"], "augmented": ["presentation", "C"], "claim": "Introduction-based annotated content beyond presentation."},
+    {"comparison": "matched-binding", "baseline": ["presentation", "C", "BC"], "augmented": ["presentation", "C", "BC", "PB", "PBR"], "claim": "Exact predicate-role-filler conjunctions beyond their unbound marginals."},
+    {"comparison": "matched-general-binding", "baseline": ["presentation", "C", "BC"], "augmented": ["presentation", "C", "BC", "GB", "GBR"], "claim": "Role-filler conjunctions beyond unbound marginals."},
+    {"comparison": "matched-scoped-binding", "baseline": ["presentation", "C", "BC"], "augmented": ["presentation", "C", "BC", "B", "BR"], "claim": "Combined binding and scope features beyond constituent content; not an isolated role effect."},
+    {"comparison": "reference", "baseline": ["presentation", "C"], "augmented": ["presentation", "C", "R"], "claim": "Reference feature package beyond introduction-based content."},
+    {"comparison": "scope", "baseline": ["presentation", "C"], "augmented": ["presentation", "C", "S"], "claim": "Scope feature package beyond introduction-based content."},
+    {"comparison": "discourse", "baseline": ["presentation", "C"], "augmented": ["presentation", "C", "D"], "claim": "Discourse feature package beyond introduction-based content."},
+    {"comparison": "state", "baseline": ["presentation", "C"], "augmented": ["presentation", "C", "U"], "claim": "State-update feature package beyond introduction-based content."},
+    {"comparison": "joint", "baseline": ["presentation", "C"], "augmented": ["presentation", "L", "C", "BC", "B", "BR", "GB", "GBR", "PB", "PBR", "R", "S", "D", "U"], "claim": "Joint annotated representation beyond introduction-based content."}
+  ],
+  "model_encoding": {
+    "comparison": "matched-binding",
+    "conditions": [["presentation", "C", "BC"], ["presentation", "C", "BC", "model"], ["presentation", "C", "BC", "model", "PB", "PBR"]],
+    "mask_models": "Declare the same specific model:layer for every condition, including the baseline.",
+    "claim": "Unique predictive contribution conditional on this readout, representation and matched observation support."
+  },
+  "decoder": {
+    "families": ["prior", "linear", "mlp", "structured"],
+    "heldout_mismatch": "All fitted readouts save predictions on nonoverlapping mismatched observations.",
+    "retrained_null_families": ["structured"],
+    "primary_scores": ["accuracy_minus_chance", "nll"],
+    "report": "Per task and story as well as equal-family/source summaries; seeds are repetitions, not participants."
+  },
+  "geometry": {
+    "views": ["native", "grounding", "latent", "latent-passage", "encoding-implied"],
+    "kinds": ["concept", "predicate", "literal", "role", "reference", "scope", "configuration", "discourse", "identity", "qualification", "state_update"],
+    "scope_modes": ["pooled", "scoped"],
+    "context_folds": ["stories:story_01,story_02,story_03,story_04,story_05", "stories:story_06,story_07,story_08,story_09,story_10"],
+    "minimum_stories_for_context_analysis": 2,
+    "primary_decoder_parent": "structured",
+    "encoding_parent": "matched-binding augmented",
+    "native_presentation_residuals": true,
+    "permutations": 10000,
+    "interpretation": "Compare matched item distances within independently fitted spaces; report unavailable items and actual shared support."
+  },
+  "aggregation": {
+    "encoding": "Paired heldout voxel scores on identical support; report native-cortex and mapped-parcel coverage separately.",
+    "decoder": "Average repeats within query, queries within source/family, families within source, sources within story, then stories. Also retain per-family/story results.",
+    "geometry": "Equal sources within story and equal stories for item signatures; compare RDMs, never average coordinates across fits.",
+    "population_intervals": "Average seeds within participant/story cells; crossed participant/story resampling requires a complete paired panel.",
+    "multiple_testing": "Report all declared models/layers/views and contrasts; labelwise tests use declared BH families, not selected significant subsets.",
+    "final_story": "Evaluate only after development choices are fixed; one final story cannot estimate across-story population uncertainty."
+  }
+}

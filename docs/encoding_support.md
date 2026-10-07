@@ -4,8 +4,10 @@ The default temporal mask is now specific to an explicitly declared comparison.
 All conditions in that comparison use the same training, inner-validation and
 held-out response rows. The old all-semantic-group intersection remains available
 as `--mask-policy all-groups`; it is no longer silently applied to every analysis.
-Accepted annotation build `5cd83e0779bb5440da47` and the compiled semantic feature
-values, scope interpretations and uncertainty records are unchanged.
+Accepted annotation build `5cd83e0779bb5440da47`, scope interpretations and
+uncertainty records are unchanged. The 2026-10-06 measurement update adds BC
+without altering the previous feature values; see
+[experiment_definitions.md](experiment_definitions.md).
 
 ## Meaning and scientific choice
 
@@ -47,11 +49,20 @@ not automatically launched experiments or restrictions on the research scope.
 | binding | C, B, BR |
 | general-binding | C, GB, GBR |
 | predicate-binding | C, PB, PBR |
+| matched-binding | C, BC, PB, PBR |
+| matched-general-binding | C, BC, GB, GBR |
+| matched-scoped-binding | C, BC, B, BR |
 | reference | C, R |
 | scope | C, S |
 | discourse | C, D |
 | state | C, U |
-| joint | L, C, B, BR, GB, GBR, PB, PBR, R, S, D, U |
+| joint | L, C, BC, B, BR, GB, GBR, PB, PBR, R, S, D, U |
+
+For `matched-binding`, compare presentation+C+BC with
+presentation+C+BC+PB+PBR on this identical support. BC contains independently
+summed predicate, role and filler marginals, including the reference channel
+and incidence counts of PB/PBR. The verifier checks this equality for every
+unit. The broader matched-scoped-binding comparison also adds scope information.
 
 For the reference comparison, the baseline arguments include
 `--comparison reference --groups presentation C`, and the augmented arguments
@@ -87,8 +98,11 @@ describe coverage, not independent samples or an annotation-accuracy estimate.
 
 The same support object governs every nested fold. A condition whose feature
 design would narrow it further fails instead of silently changing the comparison.
-`selection.json`, `complete.json` and `encoding.h5` carry its digest; the HDF also
-saves training and held-out row indices. Feature vocabularies and scalers remain
+`selection.json` and `complete.json` carry its digest. The shared version-2
+`encoding.h5` carries the numerical identity and actual-row digest, and saves
+training and held-out row indices. Logical runs retain their own full support
+declarations even when identical numerical artifacts are shared. Version-1 HDF
+files retain their original support digest. Feature vocabularies and scalers remain
 specific to each training fold and condition.
 
 `run_analysis.py compare-encoding` accepts two completed encoding directories.
@@ -108,7 +122,7 @@ cd /d C:\Users\pigby\neurosymbolic_coognitive_linguistics
 ```
 
 The verifier reconstructs availability independently from all real unit
-uncertainty records, checks all 11 story timelines and all nine configured
+uncertainty records, checks all 11 story timelines and all twelve configured
 comparison profiles, and compares actual baseline/augmented design masks.
 It checks legacy all-group reproduction, differing training-vocabulary coverage,
 undeclared-input rejection, mismatched-support rejection and story 11 fitting

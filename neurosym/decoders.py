@@ -8,6 +8,7 @@ import hashlib
 import json
 import math
 import re
+from collections import OrderedDict
 from functools import lru_cache
 
 import numpy as np
@@ -16,10 +17,66 @@ from torch import nn
 from torch.nn import functional as F
 
 from .semantic_queries import validate_ast
+from .semantic_features import FrozenDict, FrozenList, freeze_descriptor
+
+
+_public_serializations = OrderedDict()
+_query_plans = OrderedDict()
+
+
+def query_plan(inputs, *, reuse=True):
+    """Compile public immutable syntax only; never cache learned values here."""
+    key = id(inputs)
+    immutable = isinstance(inputs, FrozenDict)
+    if reuse and immutable and key in _query_plans:
+        held, plan = _query_plans[key]
+        if held is not inputs:
+            raise ValueError('Immutable query identity changed.')
+        _query_plans.move_to_end(key)
+        return plan
+    if set(inputs) - {'ast', 'candidates', 'binding_candidates'}:
+        raise ValueError('Only public query inputs may enter a decoder.')
+    ast, candidates = inputs['ast'], inputs['candidates']
+    validate_ast(ast)
+    if len(candidates) < 2:
+        raise ValueError('Candidate-choice measurement requires alternatives.')
+    plan = {'descriptor': freeze_descriptor({'ast': ast, 'binding_candidates': inputs.get('binding_candidates', [])})}
+    if ast['op'] == 'reviewed_choice':
+        task = ast['task']
+        if task == 'binding':
+            plan['binding'] = [[(a['filler'], freeze_descriptor({'op': 'role', 'role': a['role'], 'position': a['position']}))
+                                for a in c['assignment']] for c in candidates]
+            plan['fillers'] = [filler for row in plan['binding'] for filler, _ in row]
+        elif task in {'relation', 'identity'}:
+            plan['relations'] = [freeze_descriptor({'op': 'event_relation' if task == 'relation' else 'identity',
+                'relation': c['label'], 'direction': 'out'}) for c in candidates]
+    if reuse and immutable:
+        _query_plans[key] = inputs, plan
+        if len(_query_plans) > 65536:
+            _query_plans.popitem(last=False)
+    return plan
+
+
+def descriptor_key(value, *, representation='json'):
+    """Cache only compiler-frozen objects; mutable descriptors are reserialized."""
+    key = id(value), representation
+    immutable = isinstance(value, (FrozenDict, FrozenList))
+    if immutable and key in _public_serializations:
+        held, result = _public_serializations[key]
+        if held is not value:
+            raise ValueError('Immutable descriptor identity changed.')
+        _public_serializations.move_to_end(key)
+        return result
+    result = repr(value) if representation == 'repr' else json.dumps(value, sort_keys=True, ensure_ascii=False)
+    if immutable:
+        _public_serializations[key] = value, result
+        if len(_public_serializations) > 65536:
+            _public_serializations.popitem(last=False)
+    return result
 
 
 def descriptor_atoms(value, path="value"):
-    return _descriptor_atoms(json.dumps(value, sort_keys=True, ensure_ascii=False), path)
+    return _descriptor_atoms(descriptor_key(value), path)
 
 
 @lru_cache(maxsize=65536)
@@ -97,6 +154,57 @@ class DescriptorEncoder(nn.Module):
         self.numeric = nn.Linear(8, hidden, bias=False)
         self.normalization = nn.LayerNorm(hidden)
         self.cache = None
+        self.batched = True
+        self.static = OrderedDict()
+        self.packs = OrderedDict()
+
+    def _apply(self, fn, recurse=True):
+        result = super()._apply(fn, recurse=recurse)
+        self.packs.clear()
+        self.cache = None
+        return result
+
+    def atoms(self, value, key):
+        if key not in self.static:
+            words, numbers = descriptor_atoms(value)
+            self.static[key] = ([self.vocabulary.get(w, 0) for w in words] or [0], numbers)
+            if len(self.static) > 65536:
+                self.static.popitem(last=False)
+        self.static.move_to_end(key)
+        return self.static[key]
+
+    def many(self, values):
+        """Same token mean, numeric projection and LayerNorm in bounded batches.
+
+        Unknown tokens still contribute to the mean's denominator. Only token
+        IDs/numbers persist across optimizer steps; learned vectors do not.
+        """
+        if not self.batched:
+            return torch.stack([self(v) for v in values])
+        keys = [descriptor_key(v) for v in values]
+        cache = self.cache if self.cache is not None else {}
+        missing = {k: v for k, v in zip(keys, values, strict=True) if k not in cache}
+        missing = list(missing.items())
+        for start in range(0, len(missing), 128):
+            block = missing[start:start + 128]
+            pack_key = tuple(k for k, _ in block)
+            if pack_key not in self.packs:
+                parts = [self.atoms(v, k) for k, v in block]
+                lengths = [len(p[0]) for p in parts]
+                ids = [p[0] + [0] * (max(lengths) - n) for p, n in zip(parts, lengths, strict=True)]
+                device, dtype = self.embedding.weight.device, self.embedding.weight.dtype
+                self.packs[pack_key] = (torch.tensor(ids, device=device),
+                    torch.tensor(lengths, device=device, dtype=dtype),
+                    torch.tensor([p[1] for p in parts], device=device, dtype=dtype))
+                if len(self.packs) > 128:
+                    self.packs.popitem(last=False)
+            self.packs.move_to_end(pack_key)
+            ids, lengths, numbers = self.packs[pack_key]
+            # Padding embedding is fixed at zero, as in the scalar path.
+            vectors = self.embedding(ids).sum(1) / lengths[:, None]
+            encoded = self.normalization(vectors + self.numeric(numbers))
+            cache.update((k, v) for (k, _), v in zip(block, encoded.unbind(), strict=True))
+        return torch.stack([cache[k] for k in keys])
 
     def begin_source(self):
         # Reuse gradients only within one source's optimizer step.
@@ -106,12 +214,12 @@ class DescriptorEncoder(nn.Module):
         self.cache = None
 
     def forward(self, value):
-        key = json.dumps(value, sort_keys=True, ensure_ascii=False)
+        key = descriptor_key(value)
         if self.cache is not None and key in self.cache:
             return self.cache[key]
-        words, numbers = descriptor_atoms(value)
+        indices, numbers = self.atoms(value, key)
         device = self.embedding.weight.device
-        tokens = torch.tensor([self.vocabulary.get(w, 0) for w in words] or [0], device=device)
+        tokens = torch.tensor(indices, device=device)
         vector = self.embedding(tokens).mean(0)
         result = self.normalization(vector + self.numeric(torch.as_tensor(numbers, device=device, dtype=vector.dtype)))
         if self.cache is not None:
@@ -124,11 +232,16 @@ class SemanticDecoder(nn.Module):
         super().__init__()
         if family not in {"prior", "linear", "mlp", "structured"}:
             raise ValueError("Unknown decoder family.")
-        self.family, self.shape, self.hidden = family, tuple(shape), hidden
-        sites, times, components = self.shape
+        self.family, self.shape, self.hidden = family, (() if family == 'prior' else tuple(shape)), hidden
+        self.factorized_relations = True
+        self.reuse_observation = True
+        self.reuse_query_plans = True
+        self.end_observation()
+        sites, times, components = self.shape if family != 'prior' else (0, 0, 0)
         self.descriptors = DescriptorEncoder(vocabulary, hidden)
-        self.register_buffer("site_mask", torch.as_tensor(site_mask if site_mask is not None else np.ones(sites), dtype=torch.bool))
-        if not self.site_mask.any():
+        self.register_buffer("site_mask", torch.as_tensor([] if family == 'prior' else
+                             site_mask if site_mask is not None else np.ones(sites), dtype=torch.bool))
+        if family != 'prior' and not self.site_mask.any():
             raise ValueError("No observed, trainable support sites.")
         if family != "structured":
             self.prior = nn.Sequential(nn.Linear(hidden * 3, hidden), nn.GELU(), nn.Linear(hidden, 1))
@@ -149,27 +262,30 @@ class SemanticDecoder(nn.Module):
             self.operator = nn.Linear(hidden, self.rank * 2)
             self.binding_head = nn.Linear(2, 1)
 
-    def encode_observation(self, x):
-        if tuple(x.shape) != self.shape or not torch.isfinite(x).all():
-            raise ValueError("Decoder observation shape or values differ from its fitted contract.")
-        if self.family == "prior":
+    def encode_observation(self, x, *, checked=False):
+        self.end_observation()
+        if self.family == 'prior':
             return None
+        if tuple(x.shape) != self.shape or (not checked and not torch.isfinite(x).all()):
+            raise ValueError("Decoder observation shape or values differ from its fitted contract.")
         if self.family in {"linear", "mlp"}:
             return self.global_projection(x.reshape(-1))
         e = F.gelu(torch.einsum("pf,pfh->ph", x.flatten(1), self.local_weight))
         return self.local_shared(e) * self.site_mask[:, None]
 
+    def end_observation(self):
+        self._observed = None
+        self._observation_primitives = {}
+        self._observation_factors = {}
+        self._site_factors = None
+
     def answer(self, observed, inputs, *, capture=False):
-        if set(inputs) - {"ast", "candidates", "binding_candidates"}:
-            raise ValueError("Only public query inputs may enter a decoder.")
+        plan = query_plan(inputs, reuse=self.reuse_query_plans)
         ast, candidates = inputs["ast"], inputs["candidates"]
-        validate_ast(ast)
-        if len(candidates) < 2:
-            raise ValueError("Candidate-choice measurement requires alternatives.")
         trace = {"primitive": [], "relations": [], "intermediate": []}
         if self.family != "structured":
-            query = self.descriptors({"ast": ast, "binding_candidates": inputs.get("binding_candidates", [])})
-            candidate_vectors = torch.stack([self.descriptors(c) for c in candidates])
+            query = self.descriptors(plan['descriptor'])
+            candidate_vectors = self.descriptors.many(candidates)
             paired = torch.cat([query.expand_as(candidate_vectors), candidate_vectors,
                                 query * candidate_vectors], dim=-1)
             prior = self.prior(paired).squeeze(-1)
@@ -189,48 +305,79 @@ class SemanticDecoder(nn.Module):
             return logits, trace
 
         e = observed
-        primitive_cache, pair_cache = {}, {}
+        if not self.reuse_observation or self._observed is not observed:
+            self.end_observation()
+            self._observed = observed
+        primitive_cache = self._observation_primitives
+        factor_cache, pair_cache = self._observation_factors, {}
+        captured_primitives, captured_relations = set(), set()
+
+        def capture_primitive(key, description, scores):
+            if capture and key not in captured_primitives:
+                trace['primitive'].append({'description': description, 'scores': scores, 'routing': scores.softmax(0)})
+                captured_primitives.add(key)
 
         def primitive(description):
-            key = repr(description)
+            key = descriptor_key(description, representation='repr')
             if key not in primitive_cache:
                 scores = (e @ self.grounding_weight(self.descriptors(description))) / math.sqrt(self.hidden)
                 scores = scores.masked_fill(~self.site_mask, -1e4)
                 primitive_cache[key] = scores
-                if capture:
-                    trace["primitive"].append({"description": description, "scores": scores,
-                                                "routing": scores.softmax(0)})
+            capture_primitive(key, description, primitive_cache[key])
             return primitive_cache[key]
 
         def prime(descriptions):
-            descriptions = list({repr(d): d for d in descriptions}.values())
-            encoded = torch.stack([self.descriptors(d) for d in descriptions])
-            scores = (e @ self.grounding_weight(encoded).T) / math.sqrt(self.hidden)
-            scores = scores.masked_fill(~self.site_mask[:, None], -1e4)
-            for index, description in enumerate(descriptions):
-                primitive_cache[repr(description)] = scores[:, index]
-                if capture:
-                    trace["primitive"].append({"description": description, "scores": scores[:, index],
-                                               "routing": scores[:, index].softmax(0)})
+            descriptions = list({descriptor_key(d, representation='repr'): d for d in descriptions}.values())
+            missing = [d for d in descriptions if descriptor_key(d, representation='repr') not in primitive_cache]
+            if missing:
+                encoded = self.descriptors.many(missing)
+                scores = (e @ self.grounding_weight(encoded).T) / math.sqrt(self.hidden)
+                scores = scores.masked_fill(~self.site_mask[:, None], -1e4)
+                for index, description in enumerate(missing):
+                    primitive_cache[descriptor_key(description, representation='repr')] = scores[:, index]
+            for description in descriptions:
+                capture_primitive(descriptor_key(description, representation='repr'), description, primitive_cache[descriptor_key(description, representation='repr')])
+
+        def factors(operation):
+            key = descriptor_key(operation, representation='repr')
+            if key not in factor_cache:
+                if self._site_factors is None:
+                    self._site_factors = self.left(e), self.right(e)
+                gates = self.operator(self.descriptors(operation)).tanh()
+                factor_cache[key] = (self._site_factors[0] * (1 + gates[:self.rank]),
+                                     self._site_factors[1] * (1 + gates[self.rank:]))
+            left, right = factor_cache[key]
+            if capture and key not in captured_relations:
+                trace['relations'].append({'operation': operation, 'left_factor': left,
+                                            'right_factor': right, 'scale': math.sqrt(self.rank)})
+                captured_relations.add(key)
+            return left, right
 
         def relation(operation):
-            key = repr(operation)
+            key = descriptor_key(operation, representation='repr')
             if key not in pair_cache:
-                gates = self.operator(self.descriptors(operation)).tanh()
-                left = self.left(e) * (1 + gates[:self.rank])
-                right = self.right(e) * (1 + gates[self.rank:])
+                left, right = factors(operation)
                 pair = left @ right.T / math.sqrt(self.rank)
                 pair = pair.masked_fill(~(self.site_mask[:, None] & self.site_mask[None]), -1e4)
                 pair_cache[key] = pair
-                if capture:
-                    trace["relations"].append({"operation": operation, "left_factor": left,
-                                               "right_factor": right, "scale": math.sqrt(self.rank)})
             return pair_cache[key]
+
+        def contract(la, ra, operation):
+            if not self.factorized_relations:
+                return ra @ (la @ relation(operation))
+            left, right = factors(operation)
+            lm, rm = la * self.site_mask, ra * self.site_mask
+            value = (rm @ right) @ (lm @ left) / math.sqrt(self.rank)
+            # Retain the dense executor's -1e4 invalid-site values exactly in
+            # the algebra; do not assume masked softmax probabilities are zero.
+            li, ri = la * ~self.site_mask, ra * ~self.site_mask
+            invalid_mass = li.sum() * ra.sum(-1) + lm.sum() * ri.sum(-1)
+            return value - 1e4 * invalid_mass
 
         def bind(left, right, operation):
             ls, rs = primitive(left), primitive(right)
             la, ra = ls.softmax(0), rs.softmax(0)
-            return la @ relation(operation) @ ra + 0.5 * (la @ ls + ra @ rs)
+            return contract(la, ra, operation) + 0.5 * (la @ ls + ra @ rs)
 
         def bind_many(left, choices, operation):
             # Algebraically identical to repeated bind(), but the anchor-pair
@@ -238,7 +385,7 @@ class SemanticDecoder(nn.Module):
             ls = primitive(left)
             rs = torch.stack([primitive(c) for c in choices])
             la, ra = ls.softmax(0), rs.softmax(-1)
-            return (ra @ (la @ relation(operation)) + 0.5 * (la @ ls + (ra * rs).sum(-1))).unbind()
+            return (contract(la, ra, operation) + 0.5 * (la @ ls + (ra * rs).sum(-1))).unbind()
 
         op = ast["op"]
         if op in {"role", "reference", "status", "polarity", "compose"}:
@@ -257,15 +404,12 @@ class SemanticDecoder(nn.Module):
                 scores = [state @ primitive(c) for c in candidates]
                 latent = state @ e
             elif task == "binding":
-                prime([a["filler"] for c in candidates for a in c["assignment"]])
-                scores = [torch.stack([F.logsigmoid(bind(anchor, a["filler"],
-                    {"op": "role", "role": a["role"], "position": a["position"]})) for a in c["assignment"]]).mean()
-                          for c in candidates]
+                prime(plan['fillers'])
+                scores = [torch.stack([F.logsigmoid(bind(anchor, filler, operation)) for filler, operation in row]).mean()
+                          for row in plan['binding']]
                 latent = primitive(anchor).softmax(0) @ e
             elif task in {"relation", "identity"}:
-                scores = [bind(anchor["source"], anchor["target"],
-                    {"op": "event_relation" if task == "relation" else "identity", "relation": c["label"], "direction": "out"})
-                          for c in candidates]
+                scores = [bind(anchor['source'], anchor['target'], operation) for operation in plan['relations']]
                 latent = primitive(anchor["source"]).softmax(0) @ e
             else:
                 prime(candidates)

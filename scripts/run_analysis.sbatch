@@ -7,7 +7,8 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
-#SBATCH --time=24:00:00
+#SBATCH --time=00:30:00
+#SBATCH --signal=B:USR1@180
 #SBATCH --comment=accept_cost
 #SBATCH --chdir=/weka/projects/tshu2/zzhan330/neurosymbolic_coognitive_linguistics
 #SBATCH --output=/weka/projects/tshu2/zzhan330/neurosymbolic_coognitive_linguistics/logs/analysis-%j.log
@@ -21,4 +22,4 @@ export TORCHINDUCTOR_CACHE_DIR="$XDG_CACHE_HOME/torchinductor"
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
 PYTHON="$NEUROSYM_ROOT/.venv-analysis/bin/python"
 CODE_ROOT=$("$PYTHON" -I -B -c 'import json; print(json.load(open(".analysis-source.json"))["code_root"])')
-"$PYTHON" -I -B -u "$CODE_ROOT/scripts/run_analysis.py" "$@"
+exec "$PYTHON" -I -B -u "$CODE_ROOT/scripts/run_analysis.py" "$@"

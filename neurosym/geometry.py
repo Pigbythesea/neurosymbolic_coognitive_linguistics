@@ -10,26 +10,40 @@ from pathlib import Path
 import h5py
 import numpy as np
 from scipy.special import softmax
-from scipy.stats import spearmanr
+from scipy.stats import spearmanr, rankdata
 
 from .analysis_runs import partition, run_directory, write_report
-from .extraction import exclusive_run
+from .compute import FP64, file_hash
+from .runtime import analysis_lock as exclusive_run, deadline
 from .io import object_hash, read_json
 
 
-def cosine_rdm(values):
+def cosine_rdm(values, *, device='cpu'):
     values = np.asarray(values, dtype=np.float64)
     if values.ndim != 2 or not np.isfinite(values).all():
         raise ValueError("Finite signature matrix required.")
-    norms = np.linalg.norm(values, axis=1)
-    valid = norms > 1e-12
-    unit = np.divide(values, norms[:, None], out=np.zeros_like(values), where=valid[:, None])
-    result = np.clip(1 - unit @ unit.T, 0, 2)
+    math = FP64(device)
+    if math.gpu:
+        resident = math.array(values)
+        dnorms = math.torch.linalg.vector_norm(resident, dim=1)
+        dvalid = dnorms > 1e-12
+        unit = math.torch.where(dvalid[:, None], resident / dnorms.clamp_min(1e-12)[:, None], 0.)
+        result = np.clip(1 - math.numpy(unit @ unit.T), 0, 2)
+        norms, valid = math.numpy(dnorms), dvalid.cpu().numpy()
+    else:
+        norms = np.linalg.norm(values, axis=1)
+        valid = norms > 1e-12
+        unit = np.divide(values, norms[:, None], out=np.zeros_like(values), where=valid[:, None])
+        result = np.clip(1 - unit @ unit.T, 0, 2)
+    # The statistic uses the upper triangle; mirror it to retain exact symmetry
+    # across BLAS backends and keep label-permutation rank reuse available.
+    for i in range(len(result)):
+        result[i, :i] = result[:i, i]
     result[~(valid[:, None] & valid[None])] = np.nan
     return result, valid, norms
 
 
-def rdm_comparison(first, second, *, permutations=10000, seed=11):
+def rdm_comparison(first, second, *, permutations=10000, seed=11, device='cpu'):
     """Concept-label permutation; shared RDM cells are not independent trials."""
     a, b = np.asarray(first), np.asarray(second)
     if a.shape != b.shape or a.ndim != 2 or a.shape[0] != a.shape[1] or len(a) < 3:
@@ -44,12 +58,36 @@ def rdm_comparison(first, second, *, permutations=10000, seed=11):
     if not np.isfinite(observed):
         return {"available": False, "reason": "constant pairwise dissimilarities"}
     rng, exceed = np.random.default_rng(seed), 0
-    for _ in range(permutations):
-        order = rng.permutation(len(a))
-        value = float(spearmanr(a[upper], b[np.ix_(order, order)][upper]).statistic)
-        exceed += abs(value) >= abs(observed)
+    # A semantic-label permutation only reorders the same off-diagonal cells.
+    # Reuse ranks (including average ranks for ties), never shuffle cells IID.
+    symmetric = np.array_equal(b, b.T, equal_nan=True)
+    if symmetric:
+        ar, br = rankdata(a[upper]), rankdata(b[upper])
+        ar, br = ar - ar.mean(), br - br.mean()
+        denominator = np.linalg.norm(ar) * np.linalg.norm(br)
+        ranked = np.zeros(b.shape, dtype=np.float64)
+        ranked[upper] = br
+        ranked[(upper[1], upper[0])] = br
+    math = FP64(device)
+    batch = max(1, min(128, 8_000_000 // len(upper[0]))) if math.gpu and symmetric else 1
+    if math.gpu and symmetric:
+        d_ranked, d_ar = math.array(ranked), math.array(ar)
+        upper_device = [math.torch.as_tensor(v, device=device) for v in upper]
+    for start in range(0, permutations, batch):
+        orders = np.stack([rng.permutation(len(a)) for _ in range(min(batch, permutations - start))])
+        if math.gpu and symmetric:
+            d_order = math.torch.as_tensor(orders, device=device)
+            values = math.numpy((d_ranked[d_order[:, upper_device[0]], d_order[:, upper_device[1]]] @ d_ar) / denominator)
+        else:
+            values = [float(ar @ ranked[order[upper[0]], order[upper[1]]] / denominator) if symmetric else
+                      float(spearmanr(a[upper], b[np.ix_(order, order)][upper]).statistic) for order in orders]
+        for order, value in zip(orders, values, strict=True):
+            # Preserve the reference tail decision at numerical ties.
+            if symmetric and np.isclose(abs(value), abs(observed), atol=1e-12, rtol=1e-12):
+                value = float(spearmanr(a[upper], b[np.ix_(order, order)][upper]).statistic)
+            exceed += abs(value) >= abs(observed)
     return {"available": True, "spearman_r": observed, "two_sided_label_permutation_p": (1 + exceed) / (1 + permutations),
-            "permutations": permutations, "seed": seed, "items": len(a), "pairs": int(mask.sum()),
+            "permutations": permutations, "seed": seed, "items": len(a), "pairs": int(mask.sum()), 'computation_device': device,
             "scope": "Conditional association for these semantic items and fitted views; not population-level brain inference."}
 
 
@@ -102,16 +140,19 @@ def semantic_occurrences(data, stories, kind, *, reviewed_only=False, scope_mode
                 descriptor["scope"] = record.get("scope")
             key = record["source_id"], object_hash(descriptor)
             if key not in seen:
-                item = {**record, "item_id": key[1], "scope_observations": []}
+                item = {**record, "item_id": key[1], "scope_observations": [], "latent_links": []}
                 records.append(item)
                 seen[key] = item
             observation = {"scope": record.get("scope"), "expression_ref": record.get("expression_ref")}
             if observation not in seen[key]["scope_observations"]:
                 seen[key]["scope_observations"].append(observation)
+            if "latent_query_link" in record:
+                seen[key]["latent_links"].append({"occurrence_id": record["id"], "node": record["node"],
+                                                 **record["latent_query_link"]})
     return records
 
 
-def summarize_geometry(records, vectors, directory, *, min_stories=2):
+def summarize_geometry(records, vectors, directory, *, min_stories=2, device='cpu'):
     """One occurrence per source/item, then equal story means, never question counts."""
     if min_stories < 1:
         raise ValueError("Positive minimum context support required.")
@@ -132,7 +173,7 @@ def summarize_geometry(records, vectors, directory, *, min_stories=2):
     if not items:
         raise ValueError("No real semantic items satisfy the requested independent-story support.")
     signatures = np.stack([np.mean([story_means[(item, s)] for s in contexts[item]], axis=0) for item in items])
-    rdm, valid, norms = cosine_rdm(signatures)
+    rdm, valid, norms = cosine_rdm(signatures, device=device)
     reliability = {"available": False, "reason": "Too few items shared across independent story halves."}
     stories = sorted({story for _, story in cells})
     halves = [set(stories[::2]), set(stories[1::2])]
@@ -140,8 +181,8 @@ def summarize_geometry(records, vectors, directory, *, min_stories=2):
     if len(shared) >= 3:
         half_vectors = [np.stack([np.mean([story_means[(item, s)] for s in contexts[item] if s in half], 0)
                                  for item in shared]) for half in halves]
-        first, a, _ = cosine_rdm(half_vectors[0])
-        second, b, _ = cosine_rdm(half_vectors[1])
+        first, a, _ = cosine_rdm(half_vectors[0], device=device)
+        second, b, _ = cosine_rdm(half_vectors[1], device=device)
         common = np.flatnonzero(a & b)
         if len(common) >= 3:
             upper = np.triu_indices(len(common), 1)
@@ -231,14 +272,15 @@ def matches(description, label):
     return all(description.get(key) == value for key, value in label.items())
 
 
-def trace_signature(group, record, view):
-    if view == "latent":
+def trace_signature(group, record, view, prepared=None):
+    if view in {"latent", "latent-passage"}:
         return group["latent"][()] if "latent" in group else None
     kind, label = record["kind"], record["label"]
     if "site_mask" not in group:
         return None
-    mask = group["site_mask"][()].astype(bool)
-    primitives = [(json.loads(child.attrs["description"]), child["scores"][()]) for child in group["primitive"].values()]
+    if prepared is None:
+        prepared = prepare_trace(group)
+    mask, primitives = prepared['mask'], prepared['primitives']
     if kind in {"concept", "predicate", "literal", "scope"}:
         values = [scores for desc, scores in primitives if matches(desc, label)]
         return np.mean(values, axis=0)[mask] if values else None
@@ -262,15 +304,96 @@ def trace_signature(group, record, view):
     right = [scores for desc, scores in primitives if matches(desc, filler)]
     if not left or not right:
         return None
-    for child in group["relations"].values():
-        if json.loads(child.attrs["operation"]) == relation_label:
-            pair = child["left_factor"][()][mask] @ child["right_factor"][()][mask].T / json.loads(child.attrs["scale"])
+    if prepared['relations'] is None:
+        prepared['relations'] = [(json.loads(child.attrs['operation']), child['left_factor'][()], child['right_factor'][()],
+                                   json.loads(child.attrs['scale'])) for child in group['relations'].values()]
+    for operation, left_factor, right_factor, scale in prepared['relations']:
+        if operation == relation_label:
+            key = object_hash(operation)
+            if key not in prepared['pairs']:
+                prepared['pairs'][key] = left_factor[mask] @ right_factor[mask].T / scale
+            pair = prepared['pairs'][key]
             la, ra = softmax(np.mean(left, 0)[mask]), softmax(np.mean(right, 0)[mask])
             return (la[:, None] * pair * ra[None]).reshape(-1)
     return None
 
 
+def prepare_trace(group):
+    return {'mask': group['site_mask'][()].astype(bool),
+        'primitives': [(json.loads(child.attrs['description']), child['scores'][()]) for child in group['primitive'].values()],
+        'relations': None, 'pairs': {}}
+
+
+def vector_digest(vector):
+    """Same finite floating values/signs deduplicate without building JSON lists."""
+    import hashlib
+    value = np.asarray(vector)
+    if value.dtype.kind != 'f':
+        return object_hash(value.tolist())
+    if not np.isfinite(value).all():
+        raise ValueError('Nonfinite grounding signature.')
+    return hashlib.sha256(np.asarray(value, dtype='<f8').tobytes()).hexdigest()
+
+
+def latent_index(path):
+    queries, sources = {}, defaultdict(list)
+    with h5py.File(Path(path) / "traces.h5", "r") as file:
+        if not file.attrs["complete"]:
+            raise ValueError("Incomplete decoder evidence.")
+        for query_id, repeats in file.items():
+            values, source_ids = [], set()
+            for group in repeats.values():
+                source_ids.add(group.attrs["source_id"])
+                if "latent" in group:
+                    value = group["latent"][()]
+                    if value.ndim != 1 or not np.isfinite(value).all():
+                        raise ValueError("Invalid latent trace: " + query_id)
+                    values.append(value)
+            if len(source_ids) != 1:
+                raise ValueError("A query trace crosses source units.")
+            source = next(iter(source_ids))
+            if values:
+                queries[query_id] = (source, np.mean(values, axis=0))
+                sources[source].append(query_id)
+    return queries, sources
+
+
+def latent_vectors(path, records, view, *, index=None):
+    """Average repeats within queries, then distinct selected queries per item.
+
+    Item matching identifies a retrieval context, not a guarantee that the
+    architecture supplies different coordinates for different items/roles.
+    """
+    if view not in {"latent", "latent-passage"}:
+        raise ValueError("Unknown latent aggregation view.")
+    if view == "latent" and any(not r.get("latent_links") for r in records):
+        raise ValueError("Item-matched latents need occurrence/query links; recompile the accepted annotations.")
+    queries, sources = index if index is not None else latent_index(path)
+    vectors, coverage = {}, []
+    for record in records:
+        source, item = record["source_id"], record["item_id"]
+        linked = sorted({qid for link in record.get("latent_links", []) for qid in link["query_ids"]})
+        requested = linked if view == "latent" else sorted(sources[source])
+        available = [qid for qid in requested if qid in queries]
+        if any(queries[qid][0] != source for qid in available):
+            raise ValueError("Item/query link crosses source units.")
+        if available:
+            vectors[(source, item)] = np.mean([queries[qid][1] for qid in available], axis=0)
+        coverage.append({"source_id": source, "item_id": item, "linked_query_ids": linked,
+                         "selected_query_ids": available, "missing_query_ids": sorted(set(requested) - set(available)),
+                         "available": bool(available)})
+    return vectors, {"view": view, "selection": "same occurrence retrieval queries" if view == "latent" else "all captured queries in the source unit",
+                     "aggregation": "equal repeats within query; equal distinct queries within source/item; then equal source means within story and equal stories",
+                     "prediction_correctness_filter": False, "source_items": coverage,
+                     "interpretation": "Query-matched retrieval-context latent; no guarantee of item-separable coordinates." if view == "latent"
+                     else "Query-averaged passage latent; co-occurring items share a source vector."}
+
+
 def trace_vectors(path, records, view):
+    if view in {"latent", "latent-passage"}:
+        return latent_vectors(path, records, view)[0]
+    if view != "grounding":
+        raise ValueError("Unknown decoder trace geometry.")
     by_source, collected = defaultdict(list), defaultdict(dict)
     for record in records:
         by_source[record["source_id"]].append(record)
@@ -280,29 +403,35 @@ def trace_vectors(path, records, view):
         for repeats in file.values():
             for group in repeats.values():
                 source = group.attrs["source_id"]
+                prepared = prepare_trace(group) if 'site_mask' in group and by_source[source] else None
                 for record in by_source[source]:
-                    vector = trace_signature(group, record, view)
+                    vector = trace_signature(group, record, view, prepared=prepared)
                     if vector is None:
                         continue
                     # Repeating the same query/candidate profile does not increase support.
-                    digest = object_hash(np.asarray(vector).tolist())
+                    digest = vector_digest(vector)
                     collected[(source, record["item_id"])][digest] = vector
     return {key: np.mean(list(values.values()), axis=0) for key, values in collected.items()}
 
 
-def implied_vectors(path, data, stories, component=None):
+def implied_vectors(path, data, stories, component=None, *, device='cpu'):
+    from .encoding import encoding_file, prediction_batches
     result = {}
-    with h5py.File(Path(path) / "encoding.h5", "r") as file:
+    with h5py.File(encoding_file(path), "r") as file:
         if not file.attrs["complete"]:
             raise ValueError("Incomplete fitted encoding output.")
         for story in stories:
             group = file[story]
             row_map = {int(row): index for index, row in enumerate(group["response_rows"][()])}
-            matrix = group["contributions/" + component] if component else group["prediction"]
+            eligible = []
             for source in data.semantics.records(story, "sources"):
                 rows = source["decoder_trimmed_response_rows"]
                 if source["decoder_timing_eligible"] and all(r in row_map for r in rows):
-                    result[source["id"]] = matrix[sorted(row_map[r] for r in rows)].mean(0)
+                    eligible.append((source['id'], sorted(row_map[r] for r in rows)))
+                    result[source['id']] = np.empty(len(file['target_mean']), dtype=np.float32)
+            for section, matrix in prediction_batches(path, data, story, component=component, device=device):
+                for source_id, rows in eligible:
+                    result[source_id][section] = matrix[rows].mean(0)
     return result
 
 
@@ -336,24 +465,39 @@ def run_geometry(data, options):
         if (directory / "complete.json").exists():
             return directory
         if options["view"] == "native":
-            sources, scaling = native_source_vectors(data, options, split)
+            native_identity = {'source': data.cache_identity(options.get('model')), 'split': split,
+                'code': file_hash(Path(__file__)),
+                'options': {k: options.get(k) for k in ('modality', 'subject', 'model', 'layer', 'residualize_presentation')}}
+            sources, scaling = data.host_cache.get(('native-geometry', object_hash(native_identity)),
+                lambda: native_source_vectors(data, options, split))
             np.savez_compressed(directory / "native_scaler.npz", **scaling)
             vectors = {(r["source_id"], r["item_id"]): sources[r["source_id"]] for r in records if r["source_id"] in sources}
-        elif options["view"] in {"grounding", "latent"}:
-            vectors = trace_vectors(options["from_run"], records, options["view"])
+        elif options["view"] in {"grounding", "latent", "latent-passage"}:
+            if options["view"] == "grounding":
+                vectors = trace_vectors(options["from_run"], records, options["view"])
+            else:
+                index = data.host_cache.get(('latent-index', options['parent_identity_hash']),
+                    lambda: latent_index(options['from_run']))
+                vectors, aggregation = latent_vectors(options['from_run'], records, options['view'], index=index)
+                write_report(directory / "latent-coverage.json", aggregation)
             decoder = read_json(Path(options["from_run"]) / "decoder.json")
             mask = np.asarray(decoder["site_mask"], dtype=bool)
             sites = ([name for name, ok in zip(data.spatial.names, mask, strict=True) if ok] if options["modality"] == "brain"
                      else [f"coordinate_group_{i}" for i in np.flatnonzero(mask)])
             write_report(directory / "coordinates.json", {"sites": sites, "parent_fit": options["parent_identity_hash"],
                          "layout": "ordered source-site x target-site, row-major" if options["kind"] in {"role", "discourse", "reference", "identity", "qualification", "state_update"} and options["view"] == "grounding"
-                         else "local site scores" if options["view"] == "grounding" else "query-conditioned latent coordinates; only this fitted basis"})
+                         else "local site scores" if options["view"] == "grounding" else "learned latent coordinates; only this fitted basis",
+                         "latent_view": options["view"] if options["view"].startswith("latent") else None,
+                         "decoder_family": parent_options.get("family"),
+                         "latent_dependence": "Structured latents depend on query anchors/composed execution; roles with the same anchor can share coordinates. Linear/MLP latents are source-level projections even when query matched."})
         elif options["view"] == "encoding-implied":
-            sources = implied_vectors(options["from_run"], data, split["test"], options.get("component"))
+            key = ('implied-geometry', options['parent_identity_hash'], tuple(split['test']), options.get('component'), options.get('device', 'cpu'))
+            sources = data.host_cache.get(key, lambda: implied_vectors(options['from_run'], data, split['test'],
+                options.get('component'), device=options.get('device', 'cpu')))
             vectors = {(r["source_id"], r["item_id"]): sources[r["source_id"]] for r in records if r["source_id"] in sources}
         else:
             raise ValueError("Unknown geometry family.")
-        report = summarize_geometry(records, vectors, directory, min_stories=options["min_stories"])
+        report = summarize_geometry(records, vectors, directory, min_stories=options["min_stories"], device=options.get('device', 'cpu'))
         write_report(directory / "scope-coverage.json", {"mode": options.get("scope_mode", "pooled"),
             "occurrences": [{"source_id": r["source_id"], "item_id": r["item_id"], "scope_observations": r["scope_observations"]}
                             for r in records],
@@ -363,7 +507,20 @@ def run_geometry(data, options):
     return directory
 
 
-def compare_geometry(first, second, *, permutations=10000, seed=11):
+def run_geometry_panel(data, options_list):
+    """Run complete requested views in one process, sharing parent/source arrays."""
+    if not options_list or any(not isinstance(o, dict) for o in options_list):
+        raise ValueError('Geometry panel requires a nonempty JSON list of full geometry options.')
+    ordered = sorted(options_list, key=lambda o: (str(o.get('from_run', '')), str(o.get('modality', '')),
+        str(o.get('subject', '')), str(o.get('model', '')), str(o.get('layer', '')), str(o.get('fold', '')), str(o.get('view', ''))))
+    results = []
+    for options in ordered:
+        deadline.check()
+        results.append(run_geometry(data, options))
+    return results
+
+
+def compare_geometry(first, second, *, permutations=10000, seed=11, device='cpu'):
     first, second = Path(first), Path(second)
     a, b = read_json(first / "complete.json"), read_json(second / "complete.json")
     if a["identity"]["semantic_build_hash"] != b["identity"]["semantic_build_hash"]:
@@ -375,12 +532,32 @@ def compare_geometry(first, second, *, permutations=10000, seed=11):
         common = sorted(set(i for i, ok in zip(am["items"], af["valid"][()], strict=True) if ok) &
                         set(i for i, ok in zip(bm["items"], bf["valid"][()], strict=True) if ok))
         ai, bi = [am["items"].index(i) for i in common], [bm["items"].index(i) for i in common]
-        result = rdm_comparison(af["rdm"][()][np.ix_(ai, ai)], bf["rdm"][()][np.ix_(bi, bi)], permutations=permutations, seed=seed)
+        result = rdm_comparison(af["rdm"][()][np.ix_(ai, ai)], bf["rdm"][()][np.ix_(bi, bi)], permutations=permutations, seed=seed, device=device)
     return {"first": object_hash(a["identity"]), "second": object_hash(b["identity"]), "common_items": common,
             "first_only": len(am["items"]) - len(common), "second_only": len(bm["items"]) - len(common), **result}
 
 
-def grounding_stability(first, second, *, permutations=10000, seed=11):
+def map_label_permutation(a, b, *, permutations=10000, seed=11, device='cpu'):
+    """Mean matched-map correlation; retain the reference tail at roundoff ties."""
+    correlations = np.sum(a * b, axis=1)
+    observed, exceed, rng = float(correlations.mean()), 0, np.random.default_rng(seed)
+    math = FP64(device)
+    cross_maps = math.numpy(math.product(a, b.T)) if len(a) ** 2 * 8 <= 128 * 1024 ** 2 else None
+    # Stored map signatures are float32. A float64-only tie tolerance would
+    # miss equality cases after float32 dot-product accumulation. Conservatively
+    # recompute near-tail values using the original multiply/sum expression.
+    tolerance = 8 * np.finfo(np.result_type(a.dtype, b.dtype)).eps * a.shape[1]
+    for _ in range(permutations):
+        order = rng.permutation(len(b))
+        null = (float(cross_maps[np.arange(len(a)), order].mean()) if cross_maps is not None else
+                float(np.sum(a * b[order], axis=1).mean()))
+        if cross_maps is not None and abs(null - observed) <= tolerance:
+            null = float(np.sum(a * b[order], axis=1).mean())
+        exceed += null >= observed
+    return correlations, observed, (exceed + 1) / (permutations + 1)
+
+
+def grounding_stability(first, second, *, permutations=10000, seed=11, device='cpu'):
     """Common-atlas map agreement, with semantic-label rather than site shuffling."""
     first, second = Path(first), Path(second)
     receipts = [read_json(p / "complete.json") for p in (first, second)]
@@ -415,12 +592,8 @@ def grounding_stability(first, second, *, permutations=10000, seed=11):
     if valid.sum() < 3:
         raise ValueError("Insufficient variable common maps.")
     a, b = [v[valid] / n[valid, None] for v, n in zip(matrices, norms, strict=True)]
-    correlations = np.sum(a * b, axis=1)
-    observed, exceed, rng = float(correlations.mean()), 0, np.random.default_rng(seed)
-    for _ in range(permutations):
-        null = float(np.sum(a * b[rng.permutation(len(b))], axis=1).mean())
-        exceed += null >= observed
+    correlations, observed, pvalue = map_label_permutation(a, b, permutations=permutations, seed=seed, device=device)
     return {"common_sites": sites, "items": [i for i, ok in zip(items, valid, strict=True) if ok],
             "item_map_correlations": correlations.tolist(), "mean_map_correlation": observed,
-            "semantic_label_permutation_p": (exceed + 1) / (permutations + 1), "permutations": permutations,
+            "semantic_label_permutation_p": pvalue, "permutations": permutations, 'computation_device': device,
             "scope": "Conditional reproducibility and label specificity of decoder maps. Parcel autocorrelation is retained; this does not establish anatomical necessity."}

@@ -63,12 +63,19 @@ does not establish exact online localization.
 
 ## Encoding and decoder targets
 
-Encoding retains L, C, B/BR, GB/GBR, PB/PBR, R, S, D and U: surface information,
+Encoding retains L, C, BC, B/BR, GB/GBR, PB/PBR, R, S, D and U: surface information,
 concepts, binding and reference-dependent binding, general and predicate-specific
 binding factors, reference, scope, discourse and state updates. Scoped binding
 and relation features supplement shared factors. Exact configurations remain a
 separate feature route for compositional holdouts. Opaque qualification still
 contributes typed dimension features and retains its complete symbolic value.
+
+C measures introductions/current predicates. BC adds unbound predicate, role
+and filler marginals from exactly the PB/PBR argument incidences. Use the
+`matched-binding` comparison for structure beyond matched content. See
+[experiment_definitions.md](experiment_definitions.md) for the full measurement
+definitions; B/BR additionally includes scope, and exact categorical columns
+do not by themselves imply compositional generalization.
 
 Uncertain feature contributions are withheld, and their group's affected
 temporal support is marked unavailable. Each encoding comparison explicitly
@@ -119,6 +126,11 @@ parcels. They do not establish a unique biological location or causal necessity.
 ## Human–model comparisons
 
 Native, grounding, latent and encoding-implied geometry remain separate views.
+Latent has two explicit variants: `latent` matches each occurrence to its own
+retrieval queries; `latent-passage` averages all queries in the passage. Missing
+item links stay unavailable, and query matching does not guarantee distinct
+latent coordinates for different items. The compiler preserves all links
+through source/item deduplication; selection is independent of correctness.
 Grounding traces support unary concept/predicate/literal/scope profiles and
 ordered-pair binding, reference, discourse, identity and attachment profiles.
 Whole configurations use native, latent or encoding-implied signatures; their

@@ -32,6 +32,8 @@ class FrozenList(list):
 
 
 def freeze_descriptor(value):
+    if isinstance(value, (FrozenDict, FrozenList)):
+        return value
     if isinstance(value, dict):
         return FrozenDict({k: freeze_descriptor(v) for k, v in value.items()})
     if isinstance(value, list):
@@ -180,14 +182,14 @@ class SemanticVectorizer:
         self.vocabulary = {key: i for i, key in enumerate(identity["vocabulary"])}
 
     @classmethod
-    def fit(cls, dataset, train_stories, *, groups=("C", "B", "BR", "R", "S", "D", "U"),
+    def fit(cls, dataset, train_stories, *, groups=("C", "BC", "B", "BR", "R", "S", "D", "U"),
             include_exact=False, min_source_count=1):
         train_stories = sorted(set(train_stories))
         if not train_stories or not set(train_stories) <= set(dataset.splits["development"]):
             raise ValueError("Fit vocabulary on explicit development training stories only.")
         if type(min_source_count) is not int or min_source_count < 1:
             raise ValueError("Source-frequency threshold must be a positive integer.")
-        legal_groups = {"L", "C", "B", "BR", "GB", "GBR", "PB", "PBR", "R", "S", "D", "U"}
+        legal_groups = {"L", "C", "BC", "B", "BR", "GB", "GBR", "PB", "PBR", "R", "S", "D", "U"}
         if not groups or not set(groups) <= legal_groups:
             raise ValueError("Unknown semantic feature group.")
         counts, source_ids = Counter(), []
@@ -205,7 +207,7 @@ class SemanticVectorizer:
                     "training_source_ids": sorted(source_ids), "groups": sorted(set(groups)), "include_exact": include_exact,
                     "min_source_count": min_source_count, "vocabulary": vocabulary,
                     "source_frequency": {key: counts[key] for key in vocabulary},
-                    "representation": "Additive shared predicate/role/filler factors; optional exact conjunctions. No neural fitting or pretrained semantic embedding."})
+                    "representation": "Exact categorical feature keys summed additively; BC contains separate constituent marginals, PB/PBR contain conjunctions. The historical factorized route name does not imply learned compositional embeddings. No pretrained semantic embedding."})
 
     def transform(self, dataset, story_id):
         if dataset.build_hash != self.identity["build_hash"]:

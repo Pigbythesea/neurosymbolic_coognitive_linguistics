@@ -39,6 +39,64 @@ def public_check(value, endpoint=None):
         require(not references(value), "Story-local graph identifier in decoder input")
 
 
+def verify_unit_occurrences(history, current, source_id, occurrences, queries):
+    """Check the complete inventory and query links, including genuinely empty units."""
+    expected = Counter()
+    content_kinds = {"entities": "concept", "events": "predicate", "literals": "literal", "contexts": "scope"}
+    attachment_kinds = {"relations": "discourse", "identity_links": "identity",
+                        "qualifiers": "qualification", "properties": "state_update"}
+    for node in current:
+        record, kind = history.records[node], history.kinds[node]
+        if kind in {"entities", "events", "literals"}:
+            expected[(node, content_kinds[kind], None)] += 1
+        if kind == "events":
+            for occurrence_kind in ("scope", "configuration"):
+                expected[(node, occurrence_kind, None)] += 1
+            for position, argument in enumerate(record["arguments"]):
+                if argument["target"]:
+                    expected[(node, "role", position)] += 1
+        elif kind == "mentions" and record.get("target"):
+            expected[(node, "reference", None)] += 1
+            expected[(node, content_kinds[history.kinds[record["target"]]], None)] += 1
+        elif kind in attachment_kinds:
+            expected[(node, attachment_kinds[kind], None)] += 1
+    actual = Counter((r["node"], r["kind"], r.get("position")) for r in occurrences)
+    require(actual == expected, "Missing/extra compiled semantic occurrences: " + source_id)
+    require(all(r["source_id"] == source_id for r in occurrences + queries), "Occurrence/query assigned to another unit")
+    occurrence_tasks = {"concept": "concept", "predicate": "concept", "literal": "concept", "scope": "scope",
+                        "role": "role", "reference": "reference", "configuration": "binding", "discourse": "relation",
+                        "identity": "identity", "qualification": "qualifier", "state_update": "property"}
+    checked, absent = Counter(), Counter()
+    for occurrence in occurrences:
+        link = occurrence["latent_query_link"]
+        require(link["policy"] == "same_occurrence_public_query_v1", "Undeclared latent association")
+        node, kind = occurrence["node"], occurrence["kind"]
+        task = "reference" if history.kinds[node] == "mentions" else occurrence_tasks[kind]
+        require(link["task"] == task, "Latent query targets another semantic distinction")
+        candidates = [q for q in queries if q["input"]["ast"]["task"] == task]
+        expected_queries = []
+        for q in candidates:
+            qa = q["input"]["ast"]
+            if task in {"relation", "identity"}:
+                g = occurrence["grounding_query"]
+                matches = qa["anchor"] == {"source": g["anchor"], "target": g["filler"]}
+            elif task in {"qualifier", "property"}:
+                target = history.records[node]["target"]
+                field = "dimension" if task == "qualifier" else "attribute"
+                matches = (qa["anchor"] == history.selector(target) and
+                           qa["operation"][field] == history.records[node][field])
+            else:
+                matches = qa["anchor"] == history.selector(node, content=task not in {"concept", "reference"})
+                if task == "role":
+                    matches &= qa["operation"]["position"] == occurrence["position"]
+            if matches:
+                expected_queries.append(q["id"])
+        require(link["query_ids"] == sorted(set(expected_queries)), "Wrong/extra/missing item-matched latent query: " + source_id)
+        checked[kind] += 1
+        absent[kind] += int(not link["query_ids"])
+    return checked, absent
+
+
 def verify(build=None):
     config = read_json(Path(build) / "identity.json")["config"] if build is not None else read_json(ROOT / "configs/semantics.json")
     archive = ReviewedArchive(ROOT, config)
@@ -46,8 +104,10 @@ def verify(build=None):
     require(dataset.identity["reviewed_build_hash"] == archive.build_hash, "Wrong accepted archive")
     for name, digest in dataset.identity["code_hashes"].items():
         require(digest_file(ROOT / "neurosym" / name) == digest, "Compiler changed after compilation: " + name)
-    totals, tasks, eligible, cases_checked, story_stats = Counter(), Counter(), Counter(), [], {}
+    totals, query_task_counts, eligible, cases_checked, story_stats = Counter(), Counter(), Counter(), [], {}
     uncertainty_without_other_exclusion = 0
+    latent_links_checked, latent_links_absent = Counter(), Counter()
+    zero_occurrence_units = []
     evidence_before_availability = 0
     candidate_last_anchor = {}
     def max_anchor(value):
@@ -75,6 +135,10 @@ def verify(build=None):
         queries_by_source = {}
         for query in dataset.records(sid, "queries"):
             queries_by_source.setdefault(query["source_id"], []).append(query)
+        occurrences_by_source = {source_id: [] for source_id in sources}
+        for occurrence in dataset.records(sid, "occurrences"):
+            require(occurrence["source_id"] in sources, "Occurrence assigned to an unknown source")
+            occurrences_by_source[occurrence["source_id"]].append(occurrence)
         question_ids = set()
         prior_state = None
         for saved, delta in zip(archive.by_story[sid], deltas, strict=True):
@@ -108,6 +172,13 @@ def verify(build=None):
                 else:
                     expected = allowed[task]
                 require(ids == expected, "Candidate catalog uses future or answer-conditioned information: " + query["id"])
+            unit_occurrences = occurrences_by_source[source["id"]]
+            checked, absent = verify_unit_occurrences(history, current, source["id"], unit_occurrences,
+                                                       queries_by_source.get(source["id"], []))
+            latent_links_checked.update(checked)
+            latent_links_absent.update(absent)
+            if not unit_occurrences:
+                zero_occurrence_units.append(source["id"])
             require(source["available_at_token"] == saved["available_at_token"] and
                     source["interpretation_availability"]["seconds"] == saved["available_at_seconds"], "Availability moved")
             require(source["text_exposure"]["word_span"] == source["local_word_span"], "Text exposure changed")
@@ -195,7 +266,7 @@ def verify(build=None):
             require(not answer["scoring_eligible"] or source["decoder_timing_eligible"], "Unmeasured target scored")
             require(not answer["review_flags"] or not answer["acceptable_indices"], "Uncertainty turned into a target")
             require(not answer["scoring_eligible"] or 0 < len(answer["acceptable_indices"]) < len(dataset.candidate_sets[key]), "Invalid scored choice")
-            tasks[ast["task"]] += 1
+            query_task_counts[ast["task"]] += 1
             if answer["scoring_eligible"]:
                 eligible[ast["task"]] += 1
                 by_source[source["id"]] += 1
@@ -251,11 +322,15 @@ def verify(build=None):
     return {"status": "verified", "semantic_build_hash": dataset.build_hash, "reviewed_build_hash": archive.build_hash,
             "verification_script_sha256": digest_file(Path(__file__)),
             "archive_files_verified_unchanged": archive.verify_files(), "records": dict(totals), "stories": story_stats,
-            "queries_by_task": dict(tasks), "eligible_queries_by_task": dict(eligible), "explicit_scope_cases_checked": cases_checked,
+            "queries_by_task": dict(query_task_counts), "eligible_queries_by_task": dict(eligible), "explicit_scope_cases_checked": cases_checked,
             "evidence_before_interpretation_records": evidence_before_availability,
             "uncertain_units_retaining_other_scored_queries": uncertainty_without_other_exclusion,
+            "latent_occurrence_links_checked": dict(latent_links_checked),
+            "latent_occurrences_without_public_query": dict(latent_links_absent),
+            "verified_zero_occurrence_units": zero_occurrence_units,
             "folds": fold_reports, "annotation_review_closed": True, "scientific_fits_executed": False,
             "checks": ["accepted archive hashes", "all 1217 real graph deltas", "all ordered roles and relation reversals",
+                       "complete occurrence inventories including zero-occurrence units", "all occurrence-to-query links",
                        "scope DAG and qualifier target dependencies", "explicit modal/conditional/factivity/continuation cases",
                        "prospective updates", "targeted uncertainties", "public-query separation and prefix anchors",
                        "three distinct clocks and four unresolved endpoints", "story-disjoint nested folds and story 11 exclusion"]}

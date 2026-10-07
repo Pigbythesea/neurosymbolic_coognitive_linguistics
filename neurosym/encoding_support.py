@@ -7,7 +7,7 @@ import numpy as np
 from .io import object_hash, read_json
 from .temporal import checked_alignment
 
-SEMANTIC_GROUPS = ("L", "C", "B", "BR", "GB", "GBR", "PB", "PBR", "R", "S", "D", "U")
+SEMANTIC_GROUPS = ("L", "C", "BC", "B", "BR", "GB", "GBR", "PB", "PBR", "R", "S", "D", "U")
 ENCODING_GROUPS = set(SEMANTIC_GROUPS) | {"presentation", "legacy", "model"}
 
 

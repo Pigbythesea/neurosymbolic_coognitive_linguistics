@@ -6,6 +6,29 @@
 
 Read this file before proposing a new scope, interpreting the older proposals, or splitting implementation among agents. It preserves the conceptual discussion, the researcher's corrections to earlier advice, and the resulting direction. Most of this document concerns decisions made before implementation. Section 13 separately records operational decisions that followed, so they are not mistaken for original scientific commitments.
 
+**Cluster handoff, 2026-10-06:** Billing admission was demonstrated under
+`tshu2_scai01`/`jhu`: job `996713_4` started, reused all 11 cached Qwen extraction
+files, then failed at an alignment lock left by timed-out job `995154_4`.
+The researcher paused further fixes while preparing the integrated cluster
+transfer. The lock has not been moved and aligned completion is unverified.
+See [CLUSTER_STATUS.md](CLUSTER_STATUS.md) for the evidence and deferred recovery;
+this supersedes earlier statements that billing admission remained unconfirmed.
+
+**Measurement clarification, 2026-10-06:** The implementation branch preserves
+the full scope and accepted annotations. It adds BC, an unbound predicate/role/
+filler control matched to the structural encoding features, while retaining C
+as introduction-based content. Latent geometry now distinguishes occurrence-
+matched retrieval queries (`latent`) from query-averaged passage representations
+(`latent-passage`). Query matching does not guarantee different vectors for
+different items in the existing architecture. Exact categorical conjunctions
+are not themselves learned compositional embeddings. The concrete definitions,
+experiment defaults and verification boundary are in
+[experiment_definitions.md](experiment_definitions.md) and
+[configs/experiments.json](../configs/experiments.json). These are measurement
+and execution choices, not restrictions on interpretation or future analyses.
+The new immutable compilation and package require fresh verification receipts;
+earlier receipts describe earlier builds.
+
 **Accepted-review integration, 2026-10-05:** The researcher closed annotation
 review and authorized downstream implementation against immutable build
 `5cd83e0779bb5440da47`. This supersedes earlier instructions to wait for annotation

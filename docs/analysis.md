@@ -13,6 +13,10 @@ have run on released textual feature arrays and real compiled queries. Those
 arrays verify algorithms; they are never represented as fMRI or contemporary
 model states. **No scientific brain/model fit has run locally.**
 
+The subsequent CPU/GPU optimization pass changes these sources; earlier numerical
+receipts do not certify it. Current verification status, caches, checkpointing,
+resource profiles and researcher-run preparation are in [compute.md](compute.md).
+
 The accepted annotation input is independent-review build
 `5cd83e0779bb5440da47`, pinned by its full hash in `configs/semantics.json`.
 Review is closed. The complete downstream contract, scope interpretations,
@@ -120,9 +124,14 @@ voxels. Exact sufficient statistics avoid materializing predictions for every
 hyperparameter/voxel combination. Mixture proposals use a recorded seed.
 
 The selected estimator is refitted on all allowed outer-training stories.
-`encoding.h5` saves dual coefficients, target means, transformed training features,
-heldout predictions, group prediction contributions, per-repeat correlations/MSE,
-and mean-response correlations. Story 11 also gives measured repeat correlation;
+Each run's `artifact.json` resolves a shared `encoding.h5` containing FP64 group
+response operators, target means, training/heldout row indices, per-repeat
+correlations/MSE, and mean-response correlations. Predictions and contributions
+are reconstructed in voxel batches from these operators and the pinned training
+responses; downstream readers also accept the earlier dense format. Full native
+voxels and group contributions remain available without duplicating their arrays
+in every run. See [compute.md](compute.md) for the storage contract.
+Story 11 also gives measured repeat correlation;
 that is saved as reliability, not silently converted into a universal noise ceiling.
 
 Use matched ablation runs to compare presentation+C with structural groups added,
@@ -200,7 +209,8 @@ and averages stories equally.
 |---|---|
 | native | Training-standardized measured native voxels averaged over delayed samples/repeats, or model endpoint coordinates |
 | grounding | Unary concept/predicate site scores, or role/discourse ordered-pair evidence weighted by endpoint routing |
-| latent | Query-conditioned source latents, within one fitted basis |
+| latent | Latents from occurrence-matched retrieval queries, within one fitted basis; not guaranteed item-separable |
+| latent-passage | All-query passage mean, shared by co-occurring items |
 | encoding-implied | Heldout predicted voxels or a selected group's prediction contribution |
 
 These are geometries of labelled contexts, not isolated causal concept responses.
@@ -240,7 +250,9 @@ gradients, answer-input rejection, prediction/trace serialization, real-feature
 RDM identity, and all nine spatial contracts. This does not establish annotation
 accuracy, convergence, heldout brain performance or map reliability.
 
-The preflight reports absent full local observations. Accepted annotation review
+The preflight reports absent full local observations and verifies the declared
+model panel's source/aligned headers and provenance where present. A missing
+model prevents an overall ready status. Accepted annotation review
 is closed; its runner, prompts, configuration and original records remain intact.
 
 To compile, verify and package the accepted review, in local Windows CMD:
@@ -265,7 +277,7 @@ CUDA-capable PyTorch and project caches on an allocated compute node. It submits
 no scientific fits. The user operates cluster submissions in their authenticated
 session; the last known billing-cap block is not assumed resolved.
 
-`run_analysis.py` exposes `preflight`, `encoding`, `decoder`, `geometry` and
+`run_analysis.py` exposes `plan`, `preflight`, `encoding`, `decoder`, `geometry`, `compare-encoding` and
 `compare` (`--maps` selects anatomical map stability). Its help lists explicit
 conditions. `run_analysis.sbatch` defaults to CPU; CUDA requires a user-requested
 GPU allocation plus `--device cuda`. Full fits and large permutations are long

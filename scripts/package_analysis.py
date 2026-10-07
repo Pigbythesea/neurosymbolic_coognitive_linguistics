@@ -15,7 +15,9 @@ from neurosym.io import object_hash, read_json
 MODULES = ["__init__", "io", "dataset", "extraction_inputs", "model_registry", "temporal", "extraction",
            "model_features", "graphs", "semantics", "semantic_queries", "semantic_records", "semantic_features",
            "analysis_data", "analysis_runs", "spatial", "decoders", "decoder_fit", "encoding", "encoding_support", "geometry",
-           "reviewed_archive", "reviewed_graph", "reviewed_queries", "reviewed_compile"]
+           "reviewed_archive", "reviewed_graph", "reviewed_queries", "reviewed_compile", "experiment_plan", "compute", "storage", "execution", "pca", "runtime"]
+EXECUTION_SCRIPTS = ['scripts/run_analysis.py', 'scripts/verify_compute.py', 'scripts/submit_analysis.py',
+                     'scripts/run_manifest_array.py', 'scripts/run_analysis_array.sbatch']
 
 
 def main():
@@ -24,20 +26,41 @@ def main():
     verification = read_json(ROOT / "artifacts/analysis-verification.json")
     if verification["status"] != "verified" or verification["semantic_build_hash"] != data.semantics.build_hash:
         raise ValueError("Verify the FINAL compiled annotation build before packaging; the old snapshot's receipt is insufficient.")
+    if verification.get("verified_code_sha256", {}).get("scripts/verify_analysis.py") != hashlib.sha256((ROOT / "scripts/verify_analysis.py").read_bytes()).hexdigest():
+        raise ValueError("Analysis verification procedure changed since its receipt.")
     support = read_json(ROOT / "artifacts/encoding-support-verification.json")
     if (support["status"] != "verified" or support["semantic_build_hash"] != data.semantics.build_hash or
             support.get("config_hash") != object_hash(data.config) or verification.get("config_hash") != object_hash(data.config) or
             support.get("verification_script_sha256") != hashlib.sha256((ROOT / "scripts/verify_encoding_support.py").read_bytes()).hexdigest()):
         raise ValueError("Verify comparison support on the complete real corpus with the current analysis configuration.")
     reviewed = read_json(ROOT / "artifacts/reviewed-semantics-verification.json")
+    from neurosym.experiment_plan import experiment_plan
+    plan = experiment_plan(data)
+    if (verification.get("experiment_definition_hash") != plan["definition_hash"] or
+            read_json(ROOT / "artifacts/experiment-plan.json") != plan):
+        raise ValueError("Experiment definitions changed since verification; resolve and verify the current plan.")
     if reviewed["status"] != "verified" or reviewed["semantic_build_hash"] != data.semantics.build_hash:
         raise ValueError("Full accepted-corpus scope verification is required before packaging.")
     if reviewed.get("verification_script_sha256") != hashlib.sha256((ROOT / "scripts/verify_reviewed_semantics.py").read_bytes()).hexdigest():
         raise ValueError("Reviewed-corpus verification procedure changed since its receipt.")
+    from neurosym.execution import code_identity, execution_manifest
+    compute = read_json(ROOT / 'artifacts/compute-verification-cpu.json')
+    jobs = execution_manifest(data)
+    if (compute.get('status') != 'verified' or compute.get('device') != 'cpu' or
+            compute.get('semantic_build_hash') != data.semantics.build_hash or compute.get('code') != code_identity() or
+            compute.get('config_hash') != object_hash(data.config) or
+            compute.get('compute_config_hash') != object_hash(jobs['resources']) or
+            compute.get('execution_manifest_hash') != jobs['content_hash'] or
+            compute.get('verification_script_sha256') != hashlib.sha256((ROOT / 'scripts/verify_compute.py').read_bytes()).hexdigest()):
+        raise ValueError('Verify compute equivalence and the job inventory on the current complete build before packaging.')
+    jobs_path = ROOT / 'artifacts/execution' / jobs['content_hash'] / 'manifest.json'
+    if read_json(jobs_path) != jobs:
+        raise ValueError('Packaged execution manifest differs from verified definitions.')
     code = {f"neurosym/{name}.py": (ROOT / "neurosym" / (name + ".py")).read_bytes() for name in MODULES}
-    code["scripts/run_analysis.py"] = (ROOT / "scripts/run_analysis.py").read_bytes()
+    code.update({name: (ROOT / name).read_bytes() for name in EXECUTION_SCRIPTS})
     for name, body in code.items():
-        ast.parse(body, filename=name, feature_version=(3, 11))
+        if name.endswith('.py'):
+            ast.parse(body, filename=name, feature_version=(3, 11))
         if verification.get("verified_code_sha256", {}).get(name) != hashlib.sha256(body).hexdigest():
             raise ValueError("Analysis source changed since real-data verification: " + name)
     code_hash = object_hash({k: hashlib.sha256(v).hexdigest() for k, v in code.items()})
@@ -47,7 +70,11 @@ def main():
               "requirements/analysis.txt", "scripts/run_analysis.sbatch", "docs/analysis.md", "docs/analysis_environment.md",
               "data/processed/deniz/contract.json", "artifacts/analysis-verification.json",
               "artifacts/reviewed-semantics-verification.json", "artifacts/encoding-support-verification.json",
-              "configs/semantics.json", "docs/reviewed_downstream.md", "docs/encoding_support.md"]
+              "configs/semantics.json", "configs/experiments.json", "artifacts/experiment-plan.json",
+              "manifests/frozen-models.lock.json", "docs/experiment_definitions.md",
+              "docs/reviewed_downstream.md", "docs/encoding_support.md", 'docs/compute.md', 'configs/compute.json',
+               'artifacts/compute-verification-cpu.json', 'artifacts/execution/latest.json', 'docs/CLUSTER_STATUS.md',
+              jobs_path.relative_to(ROOT).as_posix()]
     for name in shared:
         contents[name] = (ROOT / name).read_bytes()
     folders = [data.semantics.build, data.spatial.path, ROOT / "data/atlases/schaefer200",
