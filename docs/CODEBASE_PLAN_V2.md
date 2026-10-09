@@ -2,6 +2,8 @@
 
 **Revised scientific and implementation direction, 8 October 2026. V2 implementation has not started.**
 
+**Architecture clarification, 9 October 2026:** The encoding and decoding choices below now identify their literature basis and the adaptations needed for this study. The scientific scope remains the agreed V2 scope.
+
 The aim is to understand **how concepts and relationships expressed in language are organized in human brain activity and in LLM activity, where their brain associations lie, and how the two systems correspond.**
 
 Understandable semantic descriptions connect those questions. Encoding, semantic decoding, representational similarity analysis (RSA), and a learned linear transformation provide complementary measurements. None is appointed the required successful outcome or a secondary research question. They share data preparation, timing, evaluation splits, and reporting.
@@ -62,13 +64,17 @@ Aggregation within a scan interval can be necessary because several words contri
 
 **5. Learn encoding and direct semantic decoding in parallel.**
 
-Encoding asks: **given the expressed meanings, what activity can we predict?** Fit semantic descriptions to each participant's brain responses and, separately, to each frozen model's internal activity. Regularized linear regression is a practical starting point: it learns weighted combinations while discouraging unstable large weights.
+Encoding asks: **given the expressed meanings, what activity can we predict?** Fit semantic descriptions to each participant's brain responses and, separately, to each frozen model's internal activity. Use the established voxelwise encoding framework: delayed features form a finite impulse response (FIR) model, and regularized regression estimates their association with each brain location. Use ridge for one feature space and banded ridge for jointly fitted feature families needing separate regularization, such as semantic and presentation features. This is a selected scientific measurement, not a preliminary model chosen merely for simplicity. [Voxelwise encoding framework, 2025](https://doi.org/10.1162/imag_a_00575).
 
 For brain encoding, fit usable native response coordinates and select regularization using training data, allowing different output locations to need different amounts. Reuse verified numerical solvers. Save unseen-story predictions and the corresponding response profiles. For LLM encoding, retain model and layer identity.
 
+Include a defined nonlinear brain-encoding comparison in the integrated experiment: a single-hidden-layer multilayer perceptron (MLP) predicts a compressed brain representation learned by principal component analysis (PCA), and its predictions are projected back into voxel space. Use the architecture in [Han et al., 2025 preprint](https://arxiv.org/html/2502.12771v1) as the reference, including its normalization and dropout; fit PCA and select capacity and training settings within the training stories. The paper supports this candidate, not an established advantage on our reading data or graph-derived features. Record those adaptations. This comparison is planned from the outset, not added only if linear results disappoint.
+
 Decoding asks: **given the activity, which expressed meanings can we identify?** Train direct semantic readouts for brain and LLM activity using the same concept and relation definitions. Targets come from reviewed text annotations, not presumed brain locations. Brain decoding scores measure recovery from the recordings; they are not the participants' behavioural answer accuracy.
 
-Use a compact, interpretable readout with reusable concept scores and role-conditioned relation scores. Compose relevant scores according to the supported symbolic expression. Linear concept projections are a sensible starting component; the relational computation must use the links it claims to measure. Choose the modest parameterization needed for these operations without recreating a tournament of three decoder architectures.
+Adapt the complete [NEURONA architecture](https://arxiv.org/html/2603.03343v1): spatially identified regional inputs, learned regional feature extraction, concept and region-pair relation scores, and argument-guided symbolic composition trained from semantic answers. Its [released implementation](https://github.com/PPWangyc/neurona/blob/main/src/models/fmri/simple_cnn.py) combines regional projections, convolution, nonlinear activations and pooling, region-identity embeddings, and pair representations. Linear concept heads act on these learned features; they do not make the complete decoder linear. Reuse this architectural reasoning rather than leaving the decoder as an unspecified compact readout.
+
+Adapt atlas indexing, dimensions, and response-window layout to the Deniz recordings; the released code's five-sample input arrangement is not an automatic timing prescription for continuous reading. On the LLM side, retain corresponding semantic targets and compositional operations with an input adapter for model states, without inventing anatomical parcels from arbitrary coordinate groups. Document changes from the reference architecture. NEURONA's fMRI feature encoder is a component of brain-to-meaning decoding, distinct from the meaning-to-brain encoding model above.
 
 The readout may predict labels directly or answer short symbolic queries about specified meanings. Natural-language question generation is not required. Retire the all-prefix answer catalogue and the requirement to recover complete annotation records. A query specifies the question; its inputs must not also supply the unknown answer from the graph.
 
@@ -76,13 +82,15 @@ For a negative or alternative answer, say what establishes it. An unannotated re
 
 Show what the decoder recovers beyond an appropriate frequency or input-only prediction. If a query supplies partial semantic information, compare against what that query alone reveals; this need not be a separate query-only neural network. Direct multi-label prediction instead needs an appropriate label-frequency reference.
 
-NEURONA's relevant idea is learning concept and relational grounding from semantic answers without concept-to-region supervision. Its particular executor and parcel-pair architecture are not mandatory. [NEURONA](https://arxiv.org/html/2603.03343v1).
+The selected grounding architecture learns concept and relational evidence without concept-to-region supervision. Preserve that training objective and explicit composition while adapting the implementation; this does not require reinstating V1's QA catalogue or its decoder tournament.
 
 **6. Produce concept-associated brain maps, and explain their colours.**
 
 Encoding and decoding serve the same localization interest through different estimates. Neither needs an anatomical answer key for each concept.
 
 An **encoding response map** shows the spatial response that the fitted semantic model associates with a concept or relationship. Retain the temporal response profile and explain any summary across delays. Context-dependent predictions or contrasts can show how a relationship changes the fitted pattern. A contrast involving edited semantic inputs is a model prediction, not a newly recorded human response to edited text.
+
+For nonlinear encoding, derive these maps from predicted responses in specified, supported semantic contexts, reconstructing voxel-space outputs before display. There is no single fixed concept coefficient to read from the network. Keep the source model and context definition attached to each profile, including profiles used in concept RSA.
 
 A **decoding evidence map** shows how spatially identified activity supports recognizing the meaning. When a decoder produces concept scores for particular recordings, preserve those occurrence-dependent maps and explain any overall summary. Do not relabel raw classifier coefficients as activation. For linear readouts, associated activity-pattern estimates can aid spatial interpretation; other grounding scores retain their actual model-based meaning. [Haufe et al., 2014](https://pubmed.ncbi.nlm.nih.gov/24239590/).
 
@@ -109,11 +117,15 @@ Save RDMs with identical item order and explicit item identities, together with 
 
 RSA and linear translation are complementary. Different scaling or mixing of coordinates can change original distances while leaving information linearly recoverable. Similar broad relationships can also appear despite noisy pointwise prediction. Neither outcome automatically invalidates the other.
 
-**8. Learn a linear brain-LLM correspondence and explain which meanings it carries.**
+**8. Test linear brain-LLM correspondence, compare nonlinear prediction, and explain which meanings they carry.**
 
 The hypothesis is that related semantic information may appear as different combinations of coordinates in the two systems. A linear transformation tests whether a comparatively simple translation connects their recorded activity.
 
-Fit a regularized linear map from temporally aligned, delayed LLM features to brain responses. Train on paired activity without semantic labels directing alignment, and evaluate on unseen stories. Include a reduced-rank version to ask whether a smaller shared set of activity combinations is sufficient. Choose regularization and compression using training-story validation, retaining the full linear map as its reference.
+Fit a regularized linear map from temporally aligned, delayed LLM features to brain responses. Train on paired activity without semantic labels directing alignment, and evaluate on unseen stories. This follows the model-to-brain mapping approach of [Schrimpf et al., 2021](https://doi.org/10.1073/pnas.2105646118) and tests our explicit linear-accessibility hypothesis. Include a reduced-rank version to ask whether a smaller shared set of activity combinations is sufficient. Choose regularization and compression using training-story validation, retaining the full linear map as its reference.
+
+Reuse the nonlinear predictor architecture specified in section 5 for a separate fit from LLM features to brain responses, using the same observations and evaluation splits. Report its predictions alongside the linear mappings rather than replacing the linear hypothesis test with whichever fit scores highest. Compare semantic transfer from each mapping using the fixed brain decoder below. Share the implementation and training-fitted brain compression where compatible, not fitted weights across different input feature spaces.
+
+A nonlinear semantic decoder is compatible with a linear correspondence hypothesis: recognizing a concept and translating between representations are different operations. State which representations the translation connects. If learned nonlinear encoders precede a linear map, its linearity claim concerns those learned spaces, not automatically the original recordings. Observation RSA remains available without that learned spatial transformation.
 
 Save transformations on both sides when interpreting a shared space. Compare projections of actual held-out brain and LLM activity, not a prediction with itself. Separately fitted coordinates can rotate or change sign; their numbered dimensions are not automatically identical concepts.
 
@@ -147,16 +159,16 @@ The following are proposed components, not existing implementation claims:
 |---|---|
 | neurosym/v2/meaning.py and features.py | Readable occurrences, reusable concepts, role-linked features, and direct semantic targets |
 | neurosym/v2/timeline.py | Common text, model-state, and fMRI alignment with explicit response timing |
-| neurosym/v2/encoding.py and decoding.py | Semantic encoding and interpretable compositional recovery in both systems |
-| neurosym/v2/mapping.py | Direct linear correspondence, reduced-rank fitting, and semantic transfer using fixed readouts |
+| neurosym/v2/encoding.py and decoding.py | Regularized semantic encoding, the nonlinear brain-response comparison, and adapted NEURONA compositional recovery |
+| neurosym/v2/mapping.py | Linear and reduced-rank correspondence, reuse of the nonlinear predictor architecture, and semantic transfer using fixed readouts |
 | neurosym/v2/maps.py | Named encoding-response and decoding-evidence maps with spatial provenance |
 | neurosym/v2/rsa.py | Shared RDM construction and comparison for observations and concept profiles |
 | neurosym/v2/report.py | Joint interpretation, real examples, uncertainty, and traceable figures and results |
 | configs/science_v2.json and scripts/run_v2.py | One scientific configuration and executable workflow |
 
-Keep prepared inputs and results under distinct V2 identities. Record the accepted annotation export, corpus/timing identity, target definitions, model revisions, preprocessing, and any optional descriptor encoder. Module names and storage layouts are engineering choices; changing the meaning of a target or map is a scientific change that must be explained.
+Keep prepared inputs and results under distinct V2 identities. Record the accepted annotation export, corpus/timing identity, target definitions, model revisions, architecture sources and adaptations, preprocessing, and any optional descriptor encoder. Module names and storage layouts are engineering choices; changing the meaning of a target or map is a scientific change that must be explained.
 
-Implement the shared occurrence and alignment interface first, then encoding, decoding, linear mapping, maps, RSA, and reporting against it. Complete the integrated workflow before requesting the full cluster experiment. This is a dependency order, not a sequence of miniature scientific pilots.
+Implement the shared occurrence and alignment interface first, then the specified encoding and decoding architectures, correspondence comparisons, maps, RSA, and reporting against it. Complete the integrated workflow before requesting the full cluster experiment. This is a dependency order, not a sequence of miniature scientific pilots.
 
 Once the interface is defined, meaning/timing work and numerical fitting/reporting can proceed concurrently. Integration uses real annotations and available real data evidence. Missing recordings or metadata must be reported as concrete requirements, not hidden behind dummy observations.
 
@@ -165,7 +177,7 @@ Once the interface is defined, meaning/timing work and numerical fitting/reporti
 - Concept and relationship recovery from brain and LLM activity, with understandable targets and prediction evidence.
 - Brain maps showing where concept-associated responses and decoding evidence occur.
 - Observation and concept RSA showing which distinctions are organized similarly or differently across systems.
-- Linear correspondence showing how activity translates and which meanings survive that translation.
+- Linear correspondence and its nonlinear comparison, showing how activity translates and which meanings survive that translation.
 - Supporting predictions, occurrences, fitted profiles, RDMs, spatial identities, and uncertainty that trace interpretations to data.
 
 Interpret these outputs together. Strong RSA with weaker translation, or recoverable meanings with different spatial evidence, can be informative outcomes. The project does not prescribe a winner or one required pattern of agreement.
