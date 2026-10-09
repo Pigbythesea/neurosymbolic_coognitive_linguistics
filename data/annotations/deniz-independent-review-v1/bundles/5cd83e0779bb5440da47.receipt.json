@@ -1,0 +1,21 @@
+{
+  "build_hash": "5cd83e0779bb5440da4761cbaf26dd9791966212bbc2bc787c1efd8669524751",
+  "zip": "data/annotations/deniz-independent-review-v1/bundles/5cd83e0779bb5440da47.zip",
+  "sha256": "b6b9c5ac1af2cbd2aec731e207d7310f4a3da779f991f73ecc5ffbfd8e488109",
+  "bytes": 16384794,
+  "files": 4977,
+  "all_archive_bytes_verified": true,
+  "export_verification": {
+    "verified": true,
+    "files": 4975,
+    "units": 1217,
+    "stories": 11,
+    "lossless_compilation": true,
+    "archived_patch_replay": true,
+    "interface_sidecar_replay": true,
+    "coverage_and_changelog_replay": true,
+    "human_packet_replay": true,
+    "semantic_accuracy_measured": false,
+    "human_validation": false
+  }
+}
