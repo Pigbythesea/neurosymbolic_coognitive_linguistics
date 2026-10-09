@@ -2,6 +2,8 @@
 
 **8 October 2026. Assessment, not a replacement implementation plan.**
 
+**Subsequent decision, 8 October 2026:** This audit concerns the earlier V2 draft. The revised [Codebase plan V2](CODEBASE_PLAN_V2.md) now governs implementation. It restores direct semantic decoding, simplifies measured concepts, and explicitly retains RSA alongside linear correspondence. The researcher also corrected this audit's overly sharp separation of goals: encoding and decoding maps serve the same localization interest through different estimates, and RSA and linear translation are complementary views of organization and correspondence. Preserving the original interest does not require making every reference, scope, or discourse annotation a separate prediction task. Read the assessment below as historical reasoning, not an outstanding implementation checklist.
+
 The original shared conversation was recovered successfully by a direct HTTPS request after the web reader returned a cache miss. A [local transcript](ORIGINAL_BRAINSTORM_TRANSCRIPT.md) now preserves the user messages and assistant final replies. This audit gives the researcher's questions and corrections priority over the assistant's proposals and later summaries.
 
 **Judgment: the central scientific interest is coherent, but both the V1 implementation and the V2 plan have drifted in different ways.** V1 accumulated machinery that made the questions difficult to recognize. V2 removed much of that machinery, but also narrowed some of the questions and favored one measurement route. V2 is a useful redesign proposal; it is not yet a faithful simplification of the full agreed study.

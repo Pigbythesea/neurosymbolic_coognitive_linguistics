@@ -1,14 +1,14 @@
 # Scientific scope and status handoff
 
-**Updated:** 2026-10-07
+**Updated:** 2026-10-08 for the V2 direction; the body below preserves the V1 scientific record.
 
-**V2 planning update, 2026-10-08:** Read [Codebase plan V2](CODEBASE_PLAN_V2.md) first for the revised scientific and implementation direction. It replaces the V1 measurement design with spatial semantic mapping and direct brain–LLM correspondence. V2 implementation has not started. The remainder of this document records the V1 implementation and its earlier decisions.
+**Current direction, 2026-10-08:** Read the revised [Codebase plan V2](CODEBASE_PLAN_V2.md) first. It uses simpler concepts and explicit relationships, retains encoding and direct semantic decoding together, and integrates concept-associated brain maps, observation and concept RSA, and linear brain–LLM correspondence. No external descriptor encoder is mandatory. V2 implementation has not started. The remainder of this document records V1 and must not override the revised plan.
 
-**Role:** Current scientific entry point for a new colleague or thread.
+**Role:** Historical V1 scientific record, with the current-direction pointer above.
 
-**Decision:** Proceed with the full integrated research program. Annotation review is closed; the main measurement definitions have been implemented. Empirical conclusions must come from the experiments.
+**V1 decision at the time of this record:** Proceed with the full integrated research program. Annotation review is closed; the V1 measurement definitions had been implemented. Empirical conclusions must come from the experiments.
 
-This document consolidates the researcher's decisions and the current scientific definitions. It supersedes outdated decisions and pending items in [PROJECT_HANDOFF.md](PROJECT_HANDOFF.md), which remains the historical rationale. It is neither a new literature review nor a formal preregistration. It reports no established brain–model finding and makes no publication guarantee.
+The body below consolidates the researcher's decisions and scientific definitions at the V1 stage. It superseded earlier pending items in [PROJECT_HANDOFF.md](PROJECT_HANDOFF.md); the revised V2 plan linked above now governs the redesign. This historical record is neither a new literature review nor a formal preregistration. It reports no established brain–model finding and makes no publication guarantee.
 
 Engineering readiness, transfer, jobs, runtime evidence and resource choices belong in [ENGINEERING_HANDOFF.md](ENGINEERING_HANDOFF.md), [CLUSTER_STATUS.md](CLUSTER_STATUS.md) and [compute.md](compute.md). Their changing status is deliberately not copied here.
 

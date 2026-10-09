@@ -1,215 +1,181 @@
 **Codebase plan V2**
 
-**Scientific redesign, 8 October 2026. Implementation has not started.**
+**Revised scientific and implementation direction, 8 October 2026. V2 implementation has not started.**
 
-The aim is to understand **how concepts and relationships expressed in language are organized in human brain activity and in LLM activity, where their brain associations lie, and whether a learned transformation connects the two systems.**
+The aim is to understand **how concepts and relationships expressed in language are organized in human brain activity and in LLM activity, where their brain associations lie, and how the two systems correspond.**
 
-This plan replaces the previous requirement to build three equally elaborate encoding, question-answering, and geometry pipelines. It keeps their useful scientific questions. It also keeps the existing recordings, reviewed annotations, and frozen LLMs. The change is in how we turn those materials into an experiment.
+Understandable semantic descriptions connect those questions. Encoding, semantic decoding, representational similarity analysis (RSA), and a learned linear transformation provide complementary measurements. None is appointed the required successful outcome or a secondary research question. They share data preparation, timing, evaluation splits, and reporting.
 
-Use this document as the starting point for the redesign. The older [scientific handoff](SCIENTIFIC_STATUS_HANDOFF.md) records V1 decisions and the existing implementation. The [original handoff](PROJECT_HANDOFF.md) remains useful for motivation. The [engineering handoff](ENGINEERING_HANDOFF.md) remains the source for transfer and execution history. V2 does not claim that new fits, maps, or results already exist.
+This revision incorporates the researcher's latest decisions: simpler measured concepts; encoding and decoding retained together; concept-associated brain maps from both directions; RSA explicitly retained alongside linear correspondence; and no mandatory external text encoder defining the semantic space. It supersedes the earlier V2 draft's encoding-first emphasis and optional semantic decoding.
 
-**The three questions remain the purpose of the project.**
+Read this file first for the current redesign. The [original brainstorm transcript](ORIGINAL_BRAINSTORM_TRANSCRIPT.md) preserves the motivation and the researcher's corrections. The [first-principles reference](Structured_Meaning_Brain_LLM_Human_Reference.md), [technical proposal](Structured_Meaning_Brain_LLM_Research_Proposal.md), and [historical handoff](PROJECT_HANDOFF.md) provide background, not additional implementation requirements. The [scientific status handoff](SCIENTIFIC_STATUS_HANDOFF.md) records V1, and the [engineering handoff](ENGINEERING_HANDOFF.md) owns execution and cluster status. This plan does not claim that V2 fits or results already exist.
 
-1. **Organization:** Which meanings have similar or different activity patterns? Does that organization change when a concept plays a different role or appears in a different context?
-2. **Localization:** Which measured brain locations have responses associated with particular concepts and relationships?
-3. **Correspondence:** Can a transformation learned from paired LLM and brain activity predict their relationship during an unseen story? Which meanings does that correspondence capture?
+**1. Define concepts simply, and let their relationships do useful work.**
 
-For example, “Leah gave Noah a book,” “Noah gave Leah a book,” and “Leah imagined giving Noah a book” share much of their content but express different relationships. The experiment should make these differences intelligible. These sentences illustrate the question; they are not proposed artificial fMRI observations or a replacement dataset.
+A measured concept is a reusable meaning that we can name and identify in the text. Examples include person, book, holding, giving, remembering, and fear. Concepts can concern physical things, actions, properties, or abstract meanings. They are not restricted to nouns or identical to literal word strings: different expressions can convey the same concept.
 
-**The central experiment consists of three learned mappings.**
+Combine those concepts into understandable expressions, such as holding(person, book). A particular occurrence retains its participants and roles. Giving a book to someone uses reusable meanings and role links; the entire event does not become a new isolated class.
 
-| Input | What we learn to predict | What it tells us |
-|---|---|---|
-| Meanings described by the reviewed graphs | Recorded activity at brain locations | Spatial associations between meaning and brain responses |
-| The same descriptions of meaning | Recorded internal activity of a frozen LLM | Which semantic distinctions organize that model's activity |
-| LLM activity during the actual stories | Brain activity during the same stories | A direct correspondence between the two systems |
+The default target is **meaning expressed or referred to in the text**. A passage about not giving still brings up giving. Whether a giving event is asserted is a further distinction supported by its annotation. Preserve the status needed to avoid confusing these interpretations, but do not require every nested scope or discourse detail to become a prediction target.
 
-“Learn” means fitting a relatively small statistical mapping. The LLMs stay frozen. The third mapping learns from paired recordings without semantic labels directing the alignment. This matters: teaching two systems the same labels is not, on its own, evidence that their activity corresponds.
+The reviewed graphs remain the semantic archive. Richer reference, scope, event, and discourse information remains available when it specifies a meaning being investigated or helps explain a finding. The core measurement uses clear concepts and explicit relationships. No exhaustive linguistic ontology or fixed inventory of hierarchy experiments is required.
 
-These mappings share one preparation pipeline and one story-based evaluation procedure. Maps, concept comparisons, and explanations are outputs of these fits, rather than separate collections of unrelated experiments.
+Relationships must affect the numerical representation or learned readout. Storing a graph while discarding all its edges would not test the proposed neurosymbolic account. Conversely, showing that two compiler outputs differ is not evidence that the brain distinguishes their meanings. The experiment asks whether those distinctions are supported by activity.
 
-**1. Keep the existing scientific materials and separate them from V1 analysis decisions.**
+**2. Reuse the real materials already prepared.**
 
-Use the Deniz reading recordings for all nine participants. Keep the ten development stories and the reserved final story. Keep the accepted independently reviewed graph export identified in [the semantic configuration](../configs/semantics.json).
+Keep the Deniz reading recordings for all nine participants, the ten development stories, and the reserved final story. Use the independently reviewed graph export identified in [the semantic configuration](../configs/semantics.json).
 
-Reuse the frozen-model identities and revisions already recorded in [the model lock](../manifests/frozen-models.lock.json). Reuse cached word-level states where their text, layer, and extraction identities match. There is no scientific reason to repeat expensive model extraction merely because the downstream experiment changes.
+Reuse the contemporary frozen-model identities and revisions in [the model lock](../manifests/frozen-models.lock.json). Keep the existing five model conditions and quarter-depth and final-layer measurements. Reuse word-level state caches when text, layer, and extraction identities match. The LLMs remain frozen; statistical mappings and semantic readouts are trained.
 
-Keep the complete graphs as the semantic archive. Their people, events, argument links, reference links, scope, discourse relations, identity, and state changes remain available. V2 does not reduce the research to a bag of nouns. It does remove the assumption that every annotation field must become an independent prediction task.
+Preserve V1 results as historical evidence. V2 gets distinct prepared-data and result identities. "Execution protocol 2" already refers to a V1 optimization and must not be mistaken for this scientific redesign.
 
-Keep V1 outputs as historical results under their existing identities. New feature definitions and fits get separate V2 paths and identities. In this repository, “execution protocol 2” already names a V1 optimization; it must not be confused with this scientific redesign.
+The existing annotation review remains accepted. Compile from it rather than commission another wholesale annotation exercise. If a required fact is missing or ambiguous, report that concrete issue and retain its uncertainty.
 
-**2. Build a readable record of meaning occurrences before building numerical features.**
+**3. Build one readable representation of meaning occurrences.**
 
-An occurrence is a place in the text where a concept appears or a relationship is expressed. It is not automatically the whole passage supplied to the annotator.
+An occurrence is a place where a concept or relationship is expressed. Record its story, supporting text spans, reusable concept labels, participants and role links, relevant status, and link back to the reviewed graph. Keep the source text readable beside the compiled record.
 
-The compiler should produce records a person can read: the source text, the concept or proposition, its participants and their roles, relevant scope or reference information, and the supporting text spans. Each record links back to the accepted graph.
+An occurrence is not automatically the entire passage supplied to the annotator. Repeated mentions and later references can produce new occurrences. A concept does not disappear from the timeline because its graph node was first introduced earlier.
 
-For the lending example, a record might say that the event is giving, Leah is the giver, Noah is the recipient, and the book is the transferred object. A separate field describes whether the event is asserted, imagined, negated, or inside another explicitly annotated context. Operator order remains available when it changes the meaning.
+Preserve individual referents: two people are not the same person simply because both have type person. Arbitrary graph IDs are bookkeeping, not new semantic concepts. Each prediction target states whether it concerns participant types, particular participants, or a relationship. Do not claim identity recovery from features that only preserve types.
 
-Two people remain two different referents even when both have the category “person.” A reference such as “it” keeps its link to the particular book. Story-specific identifiers establish these links; their arbitrary ID strings are not semantic features.
+Start with numerical features for reusable concepts and their role-linked combinations. Components share parameters or features across events, so a new combination can draw on familiar meanings. Avoid V1's separate, unshareable category for every complete predicate-role-filler tuple.
 
-Compile occurrences at supported mentions and event or relation expressions, including later references. A concept should not disappear from the time series merely because its graph node was first introduced earlier in the story.
+No particular external descriptor encoder is mandatory. MPNet is no longer a default scientific commitment. A frozen text encoder may help represent related descriptions if that sharing is needed, but record its contribution and keep symbolic labels and relationships explicit. Its embedding distances are not an answer about human conceptual organization.
 
-The existing review remains accepted. New semantic judgments are needed only where the new representation exposes a concrete missing or ambiguous fact. A second wholesale annotation exercise is not part of this plan.
+Use real annotated examples to explain what the features retain and what the targets mean. Keep a content-only version of the same occurrences for the comparison that asks what relationships contribute. This version removes relationships while preserving the corresponding content and timing.
 
-**3. Put those meanings on the actual reading timeline.**
+**4. Put meanings, model states, and recordings on one documented timeline.**
 
-The basic neural observation is a row of the recorded fMRI time series. We explain that time series using the meanings encountered as the story unfolds.
+Use the released word timings and the evidence spans supporting each occurrence. A relationship becomes available when its supporting text has been read; a later clarification is an update at its own location. Do not insert knowledge from later text into an earlier observation.
 
-Use the released word timing and the text spans supporting each occurrence. For a relationship that becomes specified across a clause, use the completion of the evidence needed for that relationship. Include the relevant qualifier or scope evidence when it changes what is being represented. A later clarification is an update at its own location, not information silently inserted into an earlier moment.
+The annotation-unit endpoint is no longer the universal timestamp. Where the graph only supports a broader interval, preserve that limitation instead of inventing exact timing.
 
-The whole annotation-unit endpoint is no longer the universal timestamp. An annotator's work batch can cover many events and is not a biological trial.
+The brain response is slow and overlapping. Build a continuous semantic time series and let recent meanings contribute to subsequent fMRI samples. Reuse delayed-feature machinery; the existing one-to-four-TR delays are an initial implementation setting, not a biological claim about every concept. A TR is the interval between successive fMRI volumes.
 
-Some existing records may not establish a precise earlier availability time. Preserve that uncertainty rather than inventing a timestamp. Such a record can retain its documented broader timing or remain available for untimed interpretation. This affects the particular observation, not the validity of every annotation.
+Semantic-to-LLM encoding uses the corresponding text timeline. Semantic-to-brain and direct LLM-to-brain encoding use delayed inputs. Semantic decoding uses the corresponding delayed response windows to recover the meanings being tested. Record this alignment explicitly: a text event does not have its own clean, independent brain scan.
 
-Build a continuous feature time series and allow its effects to appear over subsequent fMRI samples. Reuse the existing within-story delayed-feature machinery: it lets the model learn how recent semantic input contributes to a later blood-oxygenation response. The current one-to-four-TR delays are a practical initial setting, not a claim that every concept has an identical biological delay.
+RSA uses observations from the same timing preparation, with its delay or temporal filtering declared and chosen without optimizing the test result. Preserve the identities of the observations compared. Temporal alignment must not silently become a fitted spatial brain-model alignment before RSA.
 
-The semantic description and LLM activity must be sampled against the same presentation record. The brain mapping uses delayed inputs. The description-to-LLM mapping uses the corresponding undelayed text timeline. For direct LLM-to-brain prediction, apply the brain-delay construction to the LLM inputs.
+Aggregation within a scan interval can be necessary because several words contribute to one measurement. This differs from averaging all passages containing a concept and declaring that average its representation. Keep occurrences and context available throughout. This is an offline association study, not a claim to observe the exact instant of comprehension.
 
-Aggregation within a scan interval represents several words or events contributing to one slow measurement. This is different from averaging all passages containing a concept and declaring that average its representation. Preserve the individual occurrence records even when several contribute to the same scan interval.
+**5. Learn encoding and direct semantic decoding in parallel.**
 
-This remains an offline association study. It does not assume that we observe the exact millisecond at which a participant understands a proposition.
+Encoding asks: **given the expressed meanings, what activity can we predict?** Fit semantic descriptions to each participant's brain responses and, separately, to each frozen model's internal activity. Regularized linear regression is a practical starting point: it learns weighted combinations while discouraging unstable large weights.
 
-**4. Use a numerical description that shares information across related meanings and preserves their structure.**
+For brain encoding, fit usable native response coordinates and select regularization using training data, allowing different output locations to need different amounts. Reuse verified numerical solvers. Save unseen-story predictions and the corresponding response profiles. For LLM encoding, retain model and layer identity.
 
-The representation should allow experience with giving, receiving, people, and objects to inform a new combination. V1's separate feature for each complete predicate–role–filler combination often could not do that.
+Decoding asks: **given the activity, which expressed meanings can we identify?** Train direct semantic readouts for brain and LLM activity using the same concept and relation definitions. Targets come from reviewed text annotations, not presumed brain locations. Brain decoding scores measure recovery from the recordings; they are not the participants' behavioural answer accuracy.
 
-Use separate, understandable feature blocks for content and for its organization. Content describes the concepts and predicates present. Organization describes their role assignments, reference links, scope, and discourse or state relationships.
+Use a compact, interpretable readout with reusable concept scores and role-conditioned relation scores. Compose relevant scores according to the supported symbolic expression. Linear concept projections are a sensible starting component; the relational computation must use the links it claims to measure. Choose the modest parameterization needed for these operations without recreating a tournament of three decoder architectures.
 
-A practical default is one shared frozen text encoder for short semantic descriptions, with the graph supplying explicit component and role structure. Concept descriptions, participant descriptions, and descriptions of their bindings share the same numerical vocabulary. The encoder is a reusable way to represent related words and phrases, not another brain model to train.
+The readout may predict labels directly or answer short symbolic queries about specified meanings. Natural-language question generation is not required. Retire the all-prefix answer catalogue and the requirement to recover complete annotation records. A query specifies the question; its inputs must not also supply the unknown answer from the graph.
 
-One concrete implementation default is [sentence-transformers/all-mpnet-base-v2](https://huggingface.co/sentence-transformers/all-mpnet-base-v2), a compact sentence/paragraph encoder. Pin its revision when preparing V2. Its role is numerical representation of the annotations; the contemporary frozen LLM panel remains the object of comparison. This default is not a claim that its embedding geometry is human semantic truth.
+For a negative or alternative answer, say what establishes it. An unannotated relationship is not automatically false. Use explicit alternatives or a clearly defined observation-level presence task where absence is justified. Preserve unknown cases.
 
-Preserve role assignments explicitly in separate blocks or role-conditioned features. Include the supported identifying descriptions of participants, rather than replacing every participant by its broad category. Ordered scope and reference links need corresponding structured features. Do not encode one enormous serialized graph and assume that every relevant distinction survived.
+Show what the decoder recovers beyond an appropriate frequency or input-only prediction. If a query supplies partial semantic information, compare against what that query alone reveals; this need not be a separate query-only neural network. Direct multi-label prediction instead needs an appropriate label-frequency reference.
 
-For implementation, the readable record and the numerical representation should demonstrate the same distinctions on real corpus examples: changing the giver and recipient changes the role features; resolving a pronoun to a different referent changes the reference features; changing the applicable scope changes the scope features. These checks establish what the representation measures. They are not synthetic scientific results.
+NEURONA's relevant idea is learning concept and relational grounding from semantic answers without concept-to-region supervision. Its particular executor and parcel-pair architecture are not mandatory. [NEURONA](https://arxiv.org/html/2603.03343v1).
 
-The exact vector widths and storage layout are engineering choices. Record them in one configuration. The scientific commitments are that related meanings can share information, roles and referents remain distinguishable, and the representation can be explained through its source records.
+**6. Produce concept-associated brain maps, and explain their colours.**
 
-Keep an accompanying content-only description built from the same occurrences, participants, predicates, and timestamps. Removing structure should remove the relationships, not also remove most of the source content or change when it appears. This supplies a direct comparison when asking whether structured meaning contributes information.
+Encoding and decoding serve the same localization interest through different estimates. Neither needs an anatomical answer key for each concept.
 
-The descriptor encoder introduces a linguistic prior. Results learned using these descriptors are therefore model-based semantic descriptions. The direct brain–LLM correspondence experiment does not depend on that encoder, and the organization report also displays similarity in the input descriptions themselves. Agreement already present in those inputs must not be presented as a new discovery about the brain.
+An **encoding response map** shows the spatial response that the fitted semantic model associates with a concept or relationship. Retain the temporal response profile and explain any summary across delays. Context-dependent predictions or contrasts can show how a relationship changes the fitted pattern. A contrast involving edited semantic inputs is a model prediction, not a newly recorded human response to edited text.
 
-**5. Learn spatial semantic maps by predicting measured brain responses.**
+A **decoding evidence map** shows how spatially identified activity supports recognizing the meaning. When a decoder produces concept scores for particular recordings, preserve those occurrence-dependent maps and explain any overall summary. Do not relabel raw classifier coefficients as activation. For linear readouts, associated activity-pattern estimates can aid spatial interpretation; other grounding scores retain their actual model-based meaning. [Haufe et al., 2014](https://pubmed.ncbi.nlm.nih.gov/24239590/).
 
-For each participant, fit the description of meaning to the recorded response at each available brain voxel. A voxel is a small measured volume of brain tissue. Start with regularized linear regression: a weighted combination of semantic features, with a penalty that discourages unstable large weights.
+Atlas parcels are named groups of measured brain locations. They help display and summarize results and can organize a decoder's spatial inputs. They are not presumed homes of concepts. The existing parcel assignment has incomplete native-voxel coverage: preserve all usable coordinates for encoding and report the coverage of parcel-based analyses. LLM coordinates are not anatomical parcels.
 
-This is the main anatomical experiment. It uses all usable native response coordinates. Atlas parcels are named groups of locations used for summaries and display; they are not the places where we presume concepts must live. The existing parcel assignment has incomplete coverage, so it must not silently determine which native voxels are fitted.
+Accompany maps with supporting passages, unseen-story prediction or recovery evidence, and variation across occurrences and participants. Correlated concepts can remain difficult to separate. An associated region need not be a unique or causal storage site, and encoding and decoding maps need not be identical to be informative.
 
-Reuse the verified numerical solvers where suitable, but allow the amount of regularization to vary across output locations using training data. Do not require one cortex-wide tuning choice to serve every location. A large search over random feature-group mixtures is not the scientific objective.
+Spatial encoding follows the semantic mapping logic of the [Deniz reading/listening study](https://pubmed.ncbi.nlm.nih.gov/31427396/). Here it is combined with semantic recovery, structured relationships, and brain-model comparison.
 
-First report how well the complete semantic model predicts an unseen story at each location. Then show the difference from the same-content description without structure where the claim concerns roles, reference, scope, or discourse. Keep basic presentation predictors such as reading rate in both sides of a comparison.
+**7. Retain RSA as an explicit, standard part of the study.**
 
-To visualize a concept, evaluate its description through the fitted semantic mapping. To visualize a relationship, examine the fitted response associated with that relationship in its recorded context. Where helpful, compare two clearly described model inputs, such as the recorded role assignment and a swapped assignment.
+RSA asks whether two systems make similar distinctions among the same items. In each system, compare pairs of items' activity patterns to build a representational dissimilarity matrix, or RDM. Then compare the matrices. Brain voxels and model units need not correspond individually. A practical starting choice is correlation distance within each system and Spearman rank correlation between matching off-diagonal entries. Save these metric choices. [Kriegeskorte, Mur, and Bandettini, 2008](https://pmc.ncbi.nlm.nih.gov/articles/PMC2605405/).
 
-These are fitted response profiles and model contrasts. We did not record the participant reading a counterfactual swapped story. Save the temporal response profile as well as any spatial summary, so a display does not conceal which delays it combines.
+Implement two views through the same RSA code:
 
-A meaningful map should be accompanied by prediction performance and examples of the supporting passages. Similar meanings that repeatedly co-occur may remain difficult to distinguish. Describe the supported association at that level rather than assigning each word an exclusive brain address.
+- **Observation RSA:** compare measured brain patterns and temporally matched LLM patterns for the same story observations. This comparison does not derive both representations from semantic fitting or a learned brain-LLM spatial transformation. It describes organization of the observations; concept attribution comes from the semantic analyses.
+- **Concept RSA:** compare relationships among concept-associated profiles estimated separately from brain and LLM activity. Encoding supplies a straightforward profile for each supported meaning; interpretable decoder-derived activity or grounding profiles can supply a separately named view. This addresses the original interest in relationships among concepts within each system.
 
-This approach follows the established logic of spatial semantic encoding in [Huth et al.](https://www.nature.com/articles/nature17637) and the [Deniz reading/listening study](https://pubmed.ncbi.nlm.nih.gov/31427396/). The proposed extension concerns structured meaning and its comparison with LLM representations.
+For concept RSA, retain the source of each profile, its concept identity, supporting occurrences, fit identity, and context summary. Fit each system's semantic model separately; do not first train their distances to agree and present that agreement as an independent result. Common labels identify concepts across systems, while the fitted representation still influences geometry. Label projections for unsupported concepts as extrapolations.
 
-**6. Learn how the same meanings organize LLM activity.**
+There is no requirement to return to one passage-average vector per concept or the old four-family geometry grid. Context-specific profiles can be retained and a summary shown when its meaning is explained. Independently fitted concept maps and raw observation patterns remain distinct sources of RSA evidence.
 
-Fit the same semantic descriptions to each frozen model's recorded internal activity during the stories. Use the existing word-level states and preserve their layer identity.
+Save RDMs with identical item order and explicit item identities, together with comparison scores. An RSA correlation describes agreement in relative dissimilarities, not a percentage of shared concepts or explained brain activity. Assess brain-pattern reliability where the recordings support it so that noisy geometry is not mistaken for a precise disagreement.
 
-This gives each meaning a fitted activity profile within the LLM, just as the brain fit gives it a spatial response profile. LLM coordinates are not anatomical regions. Do not divide them into arbitrary groups and interpret those groups as model versions of brain parcels.
+RSA and linear translation are complementary. Different scaling or mixing of coordinates can change original distances while leaving information linearly recoverable. Similar broad relationships can also appear despite noisy pointwise prediction. Neither outcome automatically invalidates the other.
 
-Use these profiles to examine which concepts and relationships are distinguished similarly within each system. For example, are giving and receiving associated with related profiles? Does imagined giving differ from asserted giving? Does changing participant roles change the profile?
+**8. Learn a linear brain-LLM correspondence and explain which meanings it carries.**
 
-A pairwise similarity matrix is a useful display: each cell compares two learned profiles. A comparison between the brain and LLM matrices asks whether the same pairs are relatively similar or different. Explain that meaning beside the plot. A correlation between matrices is neither a percentage of shared concepts nor a percentage of brain activity explained.
+The hypothesis is that related semantic information may appear as different combinations of coordinates in the two systems. A linear transformation tests whether a comparatively simple translation connects their recorded activity.
 
-Keep context-specific predictions available. A single overall concept profile may be shown as a summary of a clearly described set of contexts, but it is no longer the required starting object.
+Fit a regularized linear map from temporally aligned, delayed LLM features to brain responses. Train on paired activity without semantic labels directing alignment, and evaluate on unseen stories. Include a reduced-rank version to ask whether a smaller shared set of activity combinations is sufficient. Choose regularization and compression using training-story validation, retaining the full linear map as its reference.
 
-Only meanings with actual observational support can receive an empirical interpretation. An encoder can generate a vector for an unseen concept, and a fitted model can project it into a brain map, but that projection is an extrapolation rather than measured evidence for that concept.
+Save transformations on both sides when interpreting a shared space. Compare projections of actual held-out brain and LLM activity, not a prediction with itself. Separately fitted coordinates can rotate or change sign; their numbered dimensions are not automatically identical concepts.
 
-The shared semantic description makes these maps comparable; it also influences their organization. Report that influence openly. These comparisons characterize organization under the fitted semantic description, not a uniquely determined geometry of the untouched biological and artificial systems.
+Use the existing semantic readouts to connect correspondence to meaning. Apply a brain semantic decoder trained on the training recordings to predicted brain activity on the unseen story. Compare semantic recovery with recovery from actual brain activity and with the direct LLM readout. Keep the decoder fixed during this test. This asks whether translation carries the meanings the brain readout recognizes without inventing another QA catalogue.
 
-**7. Test brain–LLM correspondence directly, without using the annotations to force it.**
+Use semantic records to interpret shared variation and its spatial distribution, with any learned interpretation fitted on training data. Predictable brain-model variation can include presentation or other nonsemantic effects; generic predictivity alone does not identify which concepts it carries.
 
-Pair the LLM activity and fMRI response through the story timeline. Fit a regularized linear transformation from the delayed LLM features to brain responses. Evaluate its predictions on an unseen story.
+A successful map supports linearly accessible shared information under these measurements, not identical mechanisms. Retained rank describes a useful predictive representation, not the number of concepts or mental dimensions in the brain. Linear fitting is central because linear accessibility is a hypothesis, not because every pair of latent spaces must have a linear relationship. [Ivanova et al.](https://arxiv.org/abs/2208.10668).
 
-Also provide a compact form of this same mapping: reduced-rank regression. In ordinary language, it asks whether a smaller collection of combinations of LLM activity can account for a corresponding collection of combinations of brain activity. Choose the amount of compression using training-story validation.
+**9. Use shared evaluation and understandable comparisons.**
 
-Save both sides of this learned space. On an unseen story, project the actual LLM activity and actual brain activity through their respective training-fitted transformations, and examine whether their trajectories correspond. Comparing a model prediction with itself is not a correspondence test.
+Keep the ten development stories: train on nine and evaluate the excluded story, repeating across all ten. Choose fitted preprocessing, regularization, compression, and selected layers using training data. The existing three inner story folds are a reusable implementation default. Keep story 11 reserved for final evaluation after development decisions are fixed.
 
-The number of retained dimensions is the size of a useful predictive representation under this model. It is not an estimate of the total number of concepts or mental dimensions in the brain. A successful linear map establishes a linear predictive relationship under the measured conditions, not identical neural mechanisms.
+Remove the special stories 01-05 versus 06-10 partitions from the default analysis. They arose from the previous averaging design. Assess story variation through ordinary evaluations. Generalizing to a new story does not by itself establish systematic generalization to unseen combinations; identify actual combinations when making that stronger claim.
 
-After learning this correspondence, use the semantic records to interpret it. Fit descriptions of the shared variation on training stories and examine those descriptions on unseen stories. Show which concepts, roles, scope distinctions, or discourse changes accompany the shared variation, and where that variation projects onto the brain.
+Use comparisons with clear purposes: presentation predictors for basic stimulus effects, matched content-only features when asking what relationships contribute, frequency or query-only predictions for semantic recovery, and disrupted timing when asking whether correspondence depends on the actual pairing. Preserve temporal structure in disruptions, for example through documented within-story shifts beyond the response window. Reuse these comparisons rather than expanding them into unrelated experiment grids.
 
-This separates two claims that V1 risked blending: there is shared predictable variation, and some of that variation is associated with particular meanings. Shared variation could also reflect presentation or other nonsemantic properties; semantic interpretation has to earn its name through the observations.
+Report participant, story, model, layer, concept, and brain-location variation where relevant before collapsing results into a mean. Participants and stories, or suitable within-story blocks, provide uncertainty units appropriate to the analysis. RSA entries and neighbouring scans are dependent; their large count is not a large number of independent replications.
 
-Retain a full linear mapping as the comparison for the compressed mapping. This is one correspondence analysis with a question about dimensionality, not a new tournament of unrelated decoder architectures.
+Repeated scans can characterize reliability where available. They are not additional participants, and reliability from one repeated story is not a universal ceiling. Maps making formal significance claims need an appropriate map-level error procedure; descriptive maps should say they are descriptive.
 
-Coordinates learned in separate fits can rotate or change sign. Compare their predictions and supported subspaces; do not average “dimension 3” from different fitted models as if it necessarily names the same thing. The general choice of mapping should follow the scientific claim, as discussed by [Ivanova et al.](https://arxiv.org/abs/2208.10668).
+There is no universal correlation or accuracy threshold that certifies the project or a venue. Explain what was predicted, which distinction was recovered, what an RDM compared, where an association appeared, and how consistently it recurred. Give real examples alongside summaries. These definitions support interpretation without requiring every measurement to be positive.
 
-**8. Retire the current QA machinery from the default V2 experiment.**
+**10. Implement one integrated V2 workflow.**
 
-The core questions above do not require all-prefix answer catalogues, query-only neural networks, three answer-scoring architectures, or a 200-by-200 array of regional routing scores.
+Reuse verified data readers, the reviewed annotation archive, frozen-model caches, numerical solvers, anatomical mappers, and execution infrastructure where their meanings match this plan. Replace old measurement choices instead of carrying them forward through defaults.
 
-Keep the old implementation and its outputs for reference, but do not make V2 preparation, fitting, or reporting depend on them. Direct semantic decoding can remain an extension when the research question specifically concerns recovery of an answer from a recording.
+The following are proposed components, not existing implementation claims:
 
-If that extension is used, train on explicit semantic distinctions drawn from the same meaning records. Questions should express those distinctions, with appropriate answer alternatives. A comparison that withholds the brain observation is useful there because it tests whether the answer can be inferred from the question alone.
+| Component | Responsibility |
+|---|---|
+| neurosym/v2/meaning.py and features.py | Readable occurrences, reusable concepts, role-linked features, and direct semantic targets |
+| neurosym/v2/timeline.py | Common text, model-state, and fMRI alignment with explicit response timing |
+| neurosym/v2/encoding.py and decoding.py | Semantic encoding and interpretable compositional recovery in both systems |
+| neurosym/v2/mapping.py | Direct linear correspondence, reduced-rank fitting, and semantic transfer using fixed readouts |
+| neurosym/v2/maps.py | Named encoding-response and decoding-evidence maps with spatial provenance |
+| neurosym/v2/rsa.py | Shared RDM construction and comparison for observations and concept profiles |
+| neurosym/v2/report.py | Joint interpretation, real examples, uncertainty, and traceable figures and results |
+| configs/science_v2.json and scripts/run_v2.py | One scientific configuration and executable workflow |
 
-NEURONA remains an inspiration for learning concept associations without concept-to-region labels. Its particular question-answering objective is not necessary for the spatial encoding route chosen here. This is a deliberate methodological change, not a claim to have reproduced NEURONA's decoder. [NEURONA](https://arxiv.org/html/2603.03343v1).
+Keep prepared inputs and results under distinct V2 identities. Record the accepted annotation export, corpus/timing identity, target definitions, model revisions, preprocessing, and any optional descriptor encoder. Module names and storage layouts are engineering choices; changing the meaning of a target or map is a scientific change that must be explained.
 
-**9. Use ordinary unseen-story evaluation and keep the results understandable.**
+Implement the shared occurrence and alignment interface first, then encoding, decoding, linear mapping, maps, RSA, and reporting against it. Complete the integrated workflow before requesting the full cluster experiment. This is a dependency order, not a sequence of miniature scientific pilots.
 
-Keep the ten development stories. Train on nine and predict the remaining story, repeating so each story is evaluated while excluded from fitting. Choose regularization and compression using validation stories inside the training set. The existing three inner story folds can be reused as an execution default.
+Once the interface is defined, meaning/timing work and numerical fitting/reporting can proceed concurrently. Integration uses real annotations and available real data evidence. Missing recordings or metadata must be reported as concrete requirements, not hidden behind dummy observations.
 
-Keep story 11 reserved for the final evaluation after V2 development decisions are fixed. It remains one additional story, not a large independent population of narratives.
+**The completed workflow should deliver five connected research outputs.**
 
-Remove the special 01–05 versus 06–10 partitions from the default analysis. They were consequences of the previous averaging design. V2 can study variation across stories using the ordinary story evaluations.
+- Concept and relationship recovery from brain and LLM activity, with understandable targets and prediction evidence.
+- Brain maps showing where concept-associated responses and decoding evidence occur.
+- Observation and concept RSA showing which distinctions are organized similarly or differently across systems.
+- Linear correspondence showing how activity translates and which meanings survive that translation.
+- Supporting predictions, occurrences, fitted profiles, RDMs, spatial identities, and uncertainty that trace interpretations to data.
 
-Keep all nine participants and the existing five frozen-model conditions. Use the existing quarter-depth and final-layer positions for the depth profile, sharing preparation and computations where possible. Label final-layer comparisons directly; any “best layer” selection comes from training stories.
+Interpret these outputs together. Strong RSA with weaker translation, or recoverable meanings with different spatial evidence, can be informative outcomes. The project does not prescribe a winner or one required pattern of agreement.
 
-Report results by participant, story, model, layer, and brain location before summarizing. Repeated scans help characterize measurement consistency where available. They are not additional people or stories, and a reliability estimate from one repeated story is not automatically a ceiling for every other result.
+**Local implementation and cluster execution remain separate practical responsibilities.**
 
-Keep a small number of comparisons with clear purposes: presentation predictors for basic stimulus effects, the matched content-only description for structural claims, and a timing-disrupted pairing for checking that direct correspondence depends on matching observations. Timing disruption should preserve the time-series structure, for example through documented within-story shifts that exceed the modeled response window. It is a diagnostic, not a complete account of every possible confound.
+Locally, implement the complete workflow, compile existing annotations and timing, and verify interfaces against saved dataset inspection and available real arrays. Reuse existing caches and metadata. On allocated cluster compute, use full recordings and model-state caches to prepare numerical inputs, fit models, and export evidence. The first full-data execution verifies dimensions, time indices, identities, and anatomical mappings; local checks cannot certify unseen arrays.
 
-Use participants and stories when describing variability. Do not treat thousands of neighboring voxels or questions as thousands of independent replications. Maps making formal statistical claims need an appropriate map-level error procedure; descriptive maps should be identified as descriptive.
+The researcher operates SSH and authorizes remote actions. Build environments, populate caches, and run jobs only on allocated compute, never on the login node. For inaccessible resources or long terminal runs, report the concrete requirement and give the researcher the steps. Local user-run commands must use CMD, not PowerShell.
 
-There is no universal correlation threshold that certifies the project. Judge what is predicted, where, how consistently, and how much measurement variation is available. The final report should explain each number in a sentence and show representative actual and predicted responses.
+Reuse scheduler, checkpoint, bundle, and concurrency mechanisms after removing dependencies on the V1 scientific inventory. Cost the new workload from its actual operations; the old GPU-hour estimate does not predict this revised experiment. Runtime and launch status remain in the engineering handoff.
 
-**10. Build one integrated V2 implementation using the existing foundations.**
-
-The following module names are proposed destinations, not files or commands that already exist.
-
-| Proposed component | Its responsibility | Existing work to reuse or replace |
-|---|---|---|
-| neurosym/v2/meaning.py | Read accepted graphs and emit readable occurrence records with evidence and identities | Reuse reviewed_archive.py and reviewed_graph.py; replace the measurement choices in reviewed_compile.py |
-| neurosym/v2/features.py | Turn the records into shared content and structured descriptions and numerical features | Replace exact-combination lookup as the principal representation in semantic_features.py |
-| neurosym/v2/timeline.py | Join meanings, word-level LLM states, and fMRI rows through actual timing | Reuse corpus.py, deniz.py, temporal.py, and model_features.py; replace universal unit-end timing |
-| neurosym/v2/mapping.py | Fit and evaluate semantic-to-brain, semantic-to-LLM, and direct LLM-to-brain mappings | Reuse suitable encoding.py and compute.py numerical routines; add reduced-rank fitting |
-| neurosym/v2/maps.py | Produce spatial semantic maps, context-specific profiles, and correspondence maps | Reuse spatial.py and the released surface mappers; replace decoder-routing localization as the default |
-| neurosym/v2/organization.py | Compare learned concept profiles and interpret shared variation | Replace native passage-average concept signatures as the central geometry |
-| neurosym/v2/report.py | Produce figures, readable examples, results, and a clear account of what each result measures | Reuse useful report/export utilities, without inheriting the old experiment matrix |
-| configs/science_v2.json and scripts/run_v2.py | Define and execute the coherent V2 study | Reuse job, checkpoint, bundle, and identity infrastructure after removing V1 analysis dependencies |
-
-Use separate prepared-data and result directories, such as data/processed/meaning-v2 and data/analysis-v2. Input identities include the accepted annotation export, corpus/timing identity, frozen-model locks, and descriptor-encoder revision.
-
-The implementation sequence is straightforward: define the occurrence record; compile real annotated stories into it; prepare aligned features; implement all three mappings; implement the spatial and organization reports; then connect the complete workflow to cluster execution. These are dependencies within one implementation, not successive miniature scientific projects.
-
-The meaning/timing work and numerical mapping/report work can proceed concurrently after their shared input format is agreed. Integration uses the real corpus and available real evidence. Do not build a dummy pipeline to stand in for inaccessible recordings.
-
-**The finished code should deliver a small set of substantive research outputs.**
-
-- A readable atlas of concept and relationship associations, with examples and prediction evidence.
-- A comparison of semantic organization in human recordings and each LLM, including context and layer differences.
-- A direct brain–LLM correspondence result, with the shared variation interpreted through the annotated meanings.
-- A record of the underlying predictions, fitted maps, source occurrences, and uncertainty, so a reader can trace an interpretation back to observations.
-
-One result need not be positive for the others to be useful. A useful correspondence with weak semantic attribution, for example, is a different conclusion from a strong concept map with weak correspondence to a particular LLM.
-
-**Local work and cluster work remain separate for practical reasons.**
-
-Locally, implement the integrated code, compile the existing text and annotations, inspect real timing and semantic examples, and verify the interfaces against the saved dataset inspection and any available real arrays. Reuse existing model-state metadata. A new descriptor model can be prepared wherever access and resources permit.
-
-On allocated cluster compute, use the complete recordings and model-state caches to prepare full numerical inputs, fit the study, and export evidence and maps. The first full-data execution must verify actual dimensions, time indices, identities, and anatomical mappings before producing scientific fits. Local compatibility checks alone cannot certify arrays that are only on the cluster.
-
-The researcher operates SSH and authorizes remote actions. Install environments, populate caches, and run jobs only on allocated compute, never on the login node. If a required resource is inaccessible or a terminal operation will be long, report the exact requirement and give the researcher the necessary steps. Local user-run commands must be CMD commands, not PowerShell.
-
-Reuse the existing concurrency limit and scheduler mechanisms rather than copying the old scientific job inventory. Linear algebra can use GPUs efficiently and descriptor preparation is comparatively small, but the V1 GPU-hour estimate does not predict V2 runtime. Cost the new manifest from its actual dimensions and operations before launch; no particular wall time is promised here.
-
-**The implementation handoff is to replace the measurement design while preserving the research question.**
-
-Implement this plan as an integrated V2 path. Preserve the reviewed semantic archive, verified input readers, frozen model caches, and useful execution infrastructure. Make readable meaning occurrences, spatial semantic maps, and direct brain–LLM correspondence the organizing objects. Keep V1 results identifiable as V1. Explain any substantive change to these scientific meanings in plain language before silently substituting a different experiment. Routine implementation choices do not require new approval checkpoints.
+Implement this accepted scope as one coherent code path. Preserve the original scientific interests, use simpler measured meanings, and keep encoding, decoding, RSA, maps, and linear correspondence connected through the same observations. Routine engineering choices do not require new approval checkpoints.

@@ -1,11 +1,13 @@
 # Project handoff: scientific scope and design decisions
 
-> **Historical decision record.** Read [SCIENTIFIC_STATUS_HANDOFF.md](SCIENTIFIC_STATUS_HANDOFF.md)
-> for the current scientific scope, settled measurement definitions, superseded
-> decisions and open scientific questions (2026-10-07). The material below
-> preserves earlier reasoning and dated updates; its pending items and operational
-> status are not a current to-do list. Engineering status is maintained separately
-> in [ENGINEERING_HANDOFF.md](ENGINEERING_HANDOFF.md).
+> **Historical decision record.** Read the revised [Codebase plan V2](CODEBASE_PLAN_V2.md)
+> for the current scientific and implementation direction (2026-10-08).
+> [SCIENTIFIC_STATUS_HANDOFF.md](SCIENTIFIC_STATUS_HANDOFF.md) preserves the V1
+> scientific record, and the [original brainstorm transcript](ORIGINAL_BRAINSTORM_TRANSCRIPT.md)
+> preserves the source discussion. The material below records earlier reasoning
+> and dated updates; its pending items and operational status are not a current
+> to-do list. Engineering status is maintained separately in
+> [ENGINEERING_HANDOFF.md](ENGINEERING_HANDOFF.md).
 
 **Recorded:** 2026-10-04  
 **Purpose:** Historical high-level rationale and record of the researcher's decisions.
