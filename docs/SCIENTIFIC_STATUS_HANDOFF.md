@@ -2,6 +2,8 @@
 
 **Updated:** 2026-10-07
 
+**V2 planning update, 2026-10-08:** Read [Codebase plan V2](CODEBASE_PLAN_V2.md) first for the revised scientific and implementation direction. It replaces the V1 measurement design with spatial semantic mapping and direct brain–LLM correspondence. V2 implementation has not started. The remainder of this document records the V1 implementation and its earlier decisions.
+
 **Role:** Current scientific entry point for a new colleague or thread.
 
 **Decision:** Proceed with the full integrated research program. Annotation review is closed; the main measurement definitions have been implemented. Empirical conclusions must come from the experiments.
@@ -255,6 +257,71 @@ The next scientific phase is to evaluate the declared branches and synthesize th
 Atlas/partition sensitivity, stronger item-specific latent readouts, further annotation quality measurement and additional corpora are scientific options, not newly imposed prerequisites. In particular, using the accepted corpus does not require another full reviewer loop. If the paper claims a quantified annotation benchmark quality, that specific claim would require corresponding independent measurement beyond the existing acceptance record.
 
 ## 13. How to continue without drifting
+
+**Completed first-day evidence release (2026-10-08):** Researcher-supplied final
+summary confirms all 1,602 selected logical items with current execution receipts,
+the complete 1,050-item primary panel, and 28/28 ordinary decoder system/fold
+panels. The controller stopped and the queue is empty. Remaining development work
+and story 11 are deferred. This establishes computation/completeness, not favorable
+scientific effects. The completed evidence archive must now be exported/downloaded
+and reviewed across task-level controls, encoding and geometry support before
+deciding on methodological revision or expansion. Earlier scientific observations
+from the 82-item snapshot must not be presented as the completed-release findings.
+
+**Latest first-day clarification (2026-10-07):** The researcher has put unrestricted
+full launch on hold. The useful-evidence-within-a-day objective must be costed
+separately from the full-development estimate (~211 GPU-hours). Earlier scheduling
+implemented priorities and reporting but would continue automatically; the latest
+instruction supersedes that continuation with an explicit evidence release and
+review before expansion. This is a scheduling decision, not a scientific stopping
+rule based on a favorable effect or a reduction of the full study scope.
+
+The subsequently authorized first release retains ordinary folds 0/5 across all nine participants
+and five final-layer models with all primary readouts, controls, task families and
+three refit seeds; matched-content/model-conditional encoding; and native and
+encoding-implied geometry across both complementary contexts. Learned-grounding
+context comparisons initially cover participants 01/02/03, Qwen27B and
+OLMo3-7b-base, both contexts/all three seeds. This fixed-ID, audit-reusing,
+cross-model-family subset is not selected by favorable scores. It provides an
+initial examination of grounding behavior/stability; it cannot replace full-panel
+anatomical evidence. Remaining subjects/models, ordinary folds and descriptive
+conditions remain in the development inventory. The researcher authorized proceeding
+with this selection; the administrative restriction and automatic completion stop
+are implemented and verified. The researcher launched controller 1027471 with the
+intended selection and six-GPU cap; its continuation chain has now completed the
+release as recorded above. Transfer/submission remain researcher-operated.
+
+The projection is about 38–42 remaining GPU-hours for this release, versus 29–33
+without new learned-grounding contexts. These are representative-timing scenarios,
+not guaranteed elapsed-time ranges. See [PRODUCTION_RUN_PLAN.md](PRODUCTION_RUN_PLAN.md)
+for assumptions, exact coverage and the implemented administrative stop restriction.
+Six GPUs remains the ceiling. Existing evidence can be inspected without new fits:
+task-level prior/mismatch/retrained-null effects, simpler-readout comparisons,
+selection histories, paired encoding and geometry support. Current structured
+scores do not yet establish convincing aggregate observation-specific recovery;
+this motivates diagnosis, not arbitrary extra epochs or new labels.
+
+Interim results must name their participant/story/condition support. Keep null
+results and all task families visible, do not redefine multiplicity around finished
+or favorable conditions, and do not substitute ordinary baselines for context-fit
+controls. Development-guided revisions remain possible with documented dependencies
+and explicit exploratory status where appropriate; story 11 stays reserved until
+development decisions are fixed. No estimator, annotation or training definition
+was changed in this clarification. The original PROJECT_HANDOFF.md is unchanged.
+
+**First production scheduling decision (2026-10-07):** Following
+[FIRST_RUN_SCIENTIFIC_FEEDBACK.md](FIRST_RUN_SCIENTIFIC_FEEDBACK.md), prioritize
+complete ordinary-fold 0/5 comparisons across all nine participants and five
+final-layer models, with all declared task families, readouts, controls and seeds.
+Encoding and both context-geometry branches proceed concurrently; all remaining
+development work is retained. Descriptive interim summaries expose support and
+paired effects without changing the final report's inference/completeness rules.
+Near-zero aggregate mismatch effects in two archived context fits motivate this
+ordering, not a diagnosed failure or a change to labels, training or measurement.
+Ordinary-fold baselines do not substitute for context-fit controls. The researcher
+set six GPUs as the current maximum; operational details belong in
+[PRODUCTION_RUN_PLAN.md](PRODUCTION_RUN_PLAN.md). No scientific estimator or
+final-story release was changed by this scheduling decision.
 
 Read this handoff first, then [experiment_definitions.md](experiment_definitions.md), [reviewed_downstream.md](reviewed_downstream.md) and [encoding_support.md](encoding_support.md) for measurement detail. [analysis.md](analysis.md) describes the readouts and spatial interface, but its historical execution-status paragraphs should not be used as a current operational report. Consult the current configurations and model lock when resolving a concrete method choice.
 

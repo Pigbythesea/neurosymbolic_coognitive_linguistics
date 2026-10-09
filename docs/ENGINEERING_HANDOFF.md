@@ -1,19 +1,201 @@
 # Engineering handoff
 
-Updated 2026-10-07. This is the engineering entry point for a colleague taking
+Updated 2026-10-08. This is the engineering entry point for a colleague taking
 over the current working tree. Scientific framing and protocol decisions belong
 to the separate scientific thread; see [PROJECT_HANDOFF.md](PROJECT_HANDOFF.md).
 Remote facts below come from researcher-supplied logs, not direct cluster access.
 
 ## Current position
 
+**First-day milestone COMPLETE (2026-10-08), confirmed by researcher-supplied
+accounting, controller log and final interim summary.** All 1,602/1,602 selected
+logical items have current execution receipts; the 1,050-item early panel and
+28/28 primary decoder system/fold panels are complete. The last task 1028558_0
+completed on ga135 in 00:03:58 with exit 0:0 after its hold was released. The queue
+is empty and the controller printed `FIRST-DAY MILESTONE COMPLETE; stopping for
+scientific review.` The automatic stop worked. The remaining development inventory
+and final story were not submitted. No selected-result gap remains in this report.
+
+Next action is evidence export and scientific review, not another fit submission.
+Run the existing start script in `inspect` mode on allocated CPU compute to refresh
+`artifacts/production-evidence-latest.zip`, then download it. The locally downloaded
+older archive contains only 82 items until replaced; do not interpret it as this
+completed release. Review task-level controls/readouts, matched encoding and geometry
+support/stability before any expansion. Runtime projections remain projections;
+controller elapsed time includes the environment hold and is not GPU computation.
+The held-job monitoring limitation below should be addressed before future runs.
+
+### Pre-completion operational history
+
+**Portal failure reconciliation (2026-10-08):** The researcher supplied explicit
+October 7-through-now accounting with array expansion and duplicate records. It
+lists 23 FAILED allocations with exit 75:0 and one historical TIMEOUT, 1022403
+(`ns-p2-derived`, 02:00:28, reported exit 0:0). Seven exit-75 allocations are from
+the current first-day run: 1027522_0, 1027768_0, 1028563_0, 1029353_0,
+1029872_0, 1030142_0 and 1030317_0. Their 26–28-minute durations match the
+30-minute allocation's safe-point yield window. The latest supplied inventory
+already confirms all 372 selected decoder results, all 28 primary decoder panels,
+and all selected geometry/comparison panels complete; no missing current decoder
+result is indicated by these allocation labels. Individual checkpoint logs were
+not newly downloaded in this audit. Earlier 1026953_0/1 are the documented trace
+measurement yields followed by continuation 1027029. The 1022403 timeout predates
+first-day controller 1027471; its detailed log is not present in the local audit,
+so no additional cause is inferred beyond the reported time limit. No OOM,
+node-failure or other non-75 FAILED entry appears in the supplied accounting.
+At that audit, the nine-item encoding worker still awaited completion; it has since
+completed as recorded above. Do not rerun the old tests.
+
+**Latest recovery (2026-10-08):** The researcher released task 1028558_0 once with
+`scontrol release`; the returned queue shows RUNNING on ga135 at 00:00:10.
+That cleared the environment-retrieval hold. The same task subsequently completed
+without duplicate submission or run restart, as recorded above.
+
+**Status immediately before recovery: 1,593/1,602 selected items had execution
+receipts; one nine-item encoding worker is blocked at Slurm startup.** Array task
+1028558_0 is PENDING with reason `user env retrieval failed requeued held`.
+Controller 1032744 remains RUNNING and repeatedly reports one outstanding encoding
+worker; no GPU task is currently running in the supplied queue. All 28 ordinary
+decoder system/fold panels are complete. Selected counts: 372 decoder, 603/612
+encoding, 106 geometry panels, 377 comparison panels, 38 preparations, 96 selections
+and one semantic-coverage item. The final study report is intentionally outside
+this milestone. This is not completion of the whole development inventory.
+
+Controllers 1027471, 1029464, 1030647 and 1031577 completed their approximately
+four-hour windows with exit 0; those are normal controller handoffs. The latest
+excerpt does not enumerate every worker's historical exit status. Confirmed blocker
+is a scheduler environment-retrieval hold, not demonstrated scientific-fit failure.
+The controller currently treats held tasks as occupied pending work, so it keeps
+waiting and handing off rather than surfacing a blocking state. Record this for
+the next administrative revision; do not modify the running immutable packet.
+The researcher captured Slurm details/accounting, released the already requeued
+task once, and checked its new state. No full run restart or result deletion was
+needed. No remote action was performed by the agent.
+
+**Latest researcher direction: implement the first-day evidence release; unrestricted
+full launch remains on hold.** The new administrative packet now selects exactly
+810 workers / 1,602 logical items and stops for review when they finish. The researcher
+transferred and launched it as controller **1027471**, observed running at 00:00:42.
+The older installed packet would continue through the full inventory and must not
+be launched. Numerical qualification remains valid; no scientific source rebuild.
+
 **The trace/storage optimization passed integrated local checks, was installed
 by job 1026424, and passed real fitted-reference CUDA qualification in job 1026427.
 Selected production fits completed; the full experiment has not been launched.
 The selected complete exports and geometry panels finished in controller job
-1026940 (43:34); detailed GPU time, phase timing and final bytes await collection.** Scientific definitions, configurations,
+1026940 (43:34); accounting/storage and comparison job 1027113 have been inspected.** Scientific definitions, configurations,
 folds, optimizer steps and seeds remain unchanged in this optimization pass.
 Scientific decisions are recorded in [SCIENTIFIC_STATUS_HANDOFF.md](SCIENTIFIC_STATUS_HANDOFF.md).
+
+### First-day evidence run (completed; launch record and fixed selection)
+
+Researcher-supplied startup evidence for 1027471 confirms selection hash
+`5d674e4428baf6debefc0a1ee970129ff82b188465a23df7e83ddb0feb17e54e`
+and `gpu_ceiling=6`. The queue shows exactly six GPU tasks: encoding
+1027477_0/1 (H100), geometry 1027478_0/1 (H200), and decoding 1027486_0/1
+(RTX6000), plus CPU controller/prior/report work. The latest status has 25/1,602
+selected execution receipts, up from 21 at startup. Earlier 82 available results
+included qualified archives whose current-manifest adoption receipts are recorded
+as their workers run; these counts are different, not evidence of lost results.
+The 294-worker / 1,050-item PRODUCTION PLAN line describes the prediction subpanel;
+the FIRST-DAY MILESTONE line defines the complete authorized selection. No error
+appears in this startup excerpt. Sustained throughput/completion is not yet measured.
+
+The earlier report conflated the roughly 211 GPU-hour full-development projection
+with time to first useful evidence. The supervisor feedback requested first-day
+results, but also automatic continuation. Its priority/reporting requirements were
+implemented; an explicitly costed first-day milestone was missing. The researcher's
+latest instruction now supersedes automatic continuation.
+
+The authorized first evidence release is **810 existing workers / 1,602 logical
+items**, including 82 available results. It retains ordinary folds 0/5 across all
+nine participants and five final-layer models, all primary readouts/controls/seeds,
+matched-content and model-conditional encoding, both contexts' primary native and
+encoding-implied geometry, and learned-grounding comparisons for participants
+01/02/03 plus Qwen27B and OLMo3-7b-base in both contexts/all three seeds. These
+grounding systems are selected by fixed IDs, audit reuse and cross-model-family
+coverage, not favorable effects. Full context coverage remains later work.
+
+The measured-class projection is **38–42 remaining GPU-hours**, approximately
+6–7 hours at six continuously occupied GPUs or 13–14 hours at three GPUs occupied
+on average. The range varies unmeasured model-augmented encoding from 1x to 5x a
+semantic-fit calibration; it is not a confidence interval. Queueing, dependency
+gaps, device/convergence variation and overhead can exceed these values. Plan for
+first-day evidence, not guaranteed first-day completion. A lighter release retaining
+all primary prediction and native geometry needs about 29–33 GPU-hours. The full
+primary context panel needs about 60–65. Exact dependency-complete selections and
+assumptions: `artifacts/first-day-runtime-plan.json`, generated by
+`artifacts/first-day-planning.py`; detailed choices: [PRODUCTION_RUN_PLAN.md](PRODUCTION_RUN_PLAN.md).
+
+Implemented in the administrative controller: only the dependency-complete selection
+can be dispatched; out-of-selection submissions are rejected; completing the
+selection stops even at a simultaneous controller time boundary. Continuations pin
+the same immutable packet and selection. Reports show milestone and full-inventory
+completeness separately, distinguishing qualified reused evidence from executor
+receipts. A completion record is published only after the final milestone report
+confirms all selected receipts. Six-GPU cap, worker groups, resume/reuse, manifest
+and estimators are unchanged. No arbitrary 24-hour kill is introduced: first-day
+completion is a runtime target, not an enforced cancellation deadline.
+
+New packet: `4c7c1d85c8d981b91713b1ddd08bc5b67fb4a995e1c50e0b0e2c850468d9e066`.
+ZIP SHA256: `a3a1e62aba5aa724b6660ff7193875c253b08ff2de3945d8d575fd3b8086f971`
+(107,522 bytes). Selection SHA256:
+`5d674e4428baf6debefc0a1ee970129ff82b188465a23df7e83ddb0feb17e54e`.
+Validation covered the complete selected dependency graph at caps 1/4/6, cap
+lowering, other recorded project allocations, no expansion after completion,
+boundary/continuation decisions, actual archived yields, downloaded evidence counts,
+and archived task/story scores. Dry-run, packet hashes/CRC and Bash syntax passed.
+Transfer and launch are now reported complete; monitor controller 1027471 and its
+same-packet successors from the persistent SSH session. No analysis rebuild, environment
+installation or another numerical benchmark is required. No remote action was
+performed by the agent. Report readiness before the submission command.
+
+### Older installed packet (historical; replace before running)
+
+The researcher set the project GPU ceiling to **six**, superseding the earlier
+eight-GPU operating target. See [PRODUCTION_RUN_PLAN.md](PRODUCTION_RUN_PLAN.md).
+Separate administrative helpers preserve the qualified installation and manifest.
+They prioritize the 294-worker / 1,050-item ordinary-fold 0/5 primary comparison
+panel, with concurrent context fitting, encoding and geometry, then continue the
+entire remaining development inventory automatically. The existing controller
+lock/dispatch ledger and one-GPU-per-worker allocation remain; no competing
+controller or numerical retraining protocol is introduced.
+
+The production packet adds descriptive interim evidence reports, including
+qualified archived fits, exact support-checked paired encoding effects and
+task/story decoder comparisons. It keeps the final complete-report barrier and
+story-11 release intact. Its inspect mode reads existing cluster evidence without
+submitting fits. Local validation used the actual manifest and two archived fitted
+prediction summaries; the first cluster report subsequently verified remote
+ordinary-fit access and paired encoding comparisons, as recorded below.
+No cluster operation was performed by the agent while preparing this packet.
+
+Production packet `2e0ac8b23d2a005ce9b88598c05d8d19e61d38a12a36a968d31a22e751b6683c`
+is prepared; ZIP SHA256
+`9b82b6a65bc384d3cfc44e4bbf107545c470750bccf3aba74f00f0e211cb594a`
+(37,942 bytes). Local checks completed the entire real dependency graph at GPU
+ceilings 1/4/6, verified the two archived fitted task/story summaries and two real
+yield records, rejected token mismatches, and passed packet integrity, dry-run,
+Python 3.11 syntax and Bash syntax checks. Evidence:
+`artifacts/production-verification.json`. The analysis ZIP and original
+PROJECT_HANDOFF.md retain their previous SHA256 values. Transfer the production
+ZIP, transfer receipt, installer and start script only; do not repackage analysis.
+
+Researcher-run inspection `1027340` subsequently completed in six seconds, exit 0.
+The downloaded `artifacts/production-evidence-latest.zip` passed CRC and snapshot
+generation agreement across all report files. The current reporter read 82 available
+logical results (21 current execution receipts plus qualified reuse), including
+52/1,050 early-panel items and two complete ordinary decoder system/fold fit panels.
+Nine matched-binding encoding contrasts across all participants on story 01 passed
+the installed identical-support comparison. All six context summaries and five
+comparison panels were readable; remaining unavailable geometry support was explicit.
+This closes the remote reporter/access check; **no full launch has been reported**.
+The earlier full-launch recommendation is withdrawn under the latest first-day
+instruction above. The new small packet implements the stop/selection change;
+no analysis rebuild or numerical benchmark is required. Scientific warning:
+on the available ordinary story, structured accuracy trails the shared query prior
+for subject01 and Qwen27B. Prioritize the planned control-complete panels and review
+interim evidence; do not infer biological grounding from map stability alone.
+Inspection provenance: `artifacts/production-inspection-1027340.json`.
 
 ### Latest evidence and optimization boundary
 
@@ -78,9 +260,14 @@ Scientific decisions are recorded in [SCIENTIFIC_STATUS_HANDOFF.md](SCIENTIFIC_S
   and continuation `1027029`, geometry `1027030`, `1027048`, `1027052`.
   All six context decoder outputs and their six geometry panels are complete.
   The first decoder array needed continuation, which the controller handled.
-  Accounting and cumulative fit runtimes/storage still need inspection; 43:34
-  includes reused work, scheduling and overlapping stages, and is not a cold-run
-  or full-study runtime estimate.
+  Detailed researcher-provided accounting now confirms 5,937 GPU-seconds
+  (1.649 GPU-hours), including continuations, across this selection. Six traces
+  occupy 2.989 GiB total: brain traces about 833 MiB each and model traces about
+  187 MiB each. Exports take 462-523 seconds per fit; complete geometry panels
+  take 274-295 seconds of process time. Against corresponding original whole
+  files, trace storage shrank 6.87x (brain) and 26.80x (model). Evidence is saved
+  in `artifacts/runtime-measurement-1026940.json`. The 43:34 includes reused
+  work, scheduling and overlapping stages; it is not a cold full-study estimate.
 
 Implemented and numerically qualified; fit reuse/cleanup completed, full throughput remains pending:
 
@@ -119,12 +306,28 @@ Implemented and numerically qualified; fit reuse/cleanup completed, full through
    by researcher-run maintenance job `1026932`; no other deletion was authorized
    or reported in this pass.
 
-The selected complete export/geometry path finished successfully on the cluster;
-its detailed accounting and full-study runtime/storage projection remain pending. The prior
-rough 200 GPU-hour estimate covered ordinary preparation/fitting/encoding only;
-it excluded expensive context export/geometry and queueing. Do not quote it as a
-full-study forecast. The eight-GPU several-day target remains unverified until
-complete new export/geometry and concurrent throughput are measured.
+The selected complete export/geometry path finished successfully on the cluster.
+Extrapolating measured conditions by workload class gives about 206 GPU-hours
+for development preparation, selection, refitting/export, encoding and geometry;
+see `artifacts/runtime-planning-extrapolation.json`. This is a conditional subtotal:
+comparison panels/reports, queueing and final evaluation are excluded; encoding
+calibration covers semantic groups rather than all model-augmented widths, and
+completed/reused work is not subtracted. It is not a complete forecast or a
+guaranteed lower bound. Eight continuously occupied GPUs would process that
+subtotal in about 26 hours. Several-day completion remains plausible but unverified.
+Production comparison workers `2548,2549,2550,2581,2582` subsequently completed
+under controller `1027113` (two minutes, exit 0), arrays `1027114` and `1027121`.
+Three human-model derived-RDM panels took 12.14, 13.02 and 13.62 seconds; two
+brain seed-stability map panels took 25.09 and 22.95 seconds (A100 process time).
+Together with earlier native/implied comparison timings, a conditional projection
+adds roughly 4.5 GPU-hours for development comparisons, giving about 211 GPU-hours
+before scheduling/launch overhead and the other extrapolation uncertainties above.
+This does not establish every comparison category or wider encoding cost.
+Engineering evidence supports the qualified executor without another optimization
+pass. It does not authorize unrestricted full launch: the latest first-day plan
+above takes precedence. The researcher has set the ceiling to six GPUs; report
+the concrete milestone and readiness before providing launch commands.
+No full-development launch or further numerical code change has been performed.
 
 ## Workspace, ownership, and operating rules
 
@@ -137,8 +340,10 @@ complete new export/geometry and concurrent throughput are measured.
 - All project environments, caches, temporary files, logs, and outputs belong
   inside the cluster workspace. No installation, environment construction,
   downloading, or analysis on login nodes. Submit these to allocated compute.
-- Aim for **4–8 concurrent GPUs total across stages**, with eight the current
-  project ceiling. Prefer organized arrays and measured, resumable allocations.
+- The current production ceiling is **six concurrent GPUs total across stages**,
+  with lower limits supported by the production controller. Earlier eight-GPU
+  statements describe the historical target/immutable manifest resource maximum.
+  Prefer organized arrays and measured, resumable allocations.
   Arrays still expose individual tasks and do not reduce resource consumption.
 - Eligible decoder GPU partitions: `l40s,rtx6000,a100,h100,h200`.
   FP64-heavy preparation/encoding profiles use `a100,h100,h200`.
@@ -313,10 +518,14 @@ the new fit counts, or infer a 16-fold speedup from batch size.
 Earlier allocated-node disk measurements: dataset 25 GiB, frozen features 47 GiB,
 Hugging Face model cache 115 GiB, analysis cache 2.7 GiB, and analysis outputs
 363 MiB: about 190 GiB across those paths, excluding environments and other
-directories. The new audit measures **15,379,811,885 bytes (14.32 GiB)** under
-analysis outputs; the old 363 MiB figure is obsolete. Other directories were not
-remeasured by this trace audit. The shared lab filesystem previously had 8.9 TiB free; that is
-not a personal quota or reserved capacity.
+directories. The latest post-1026940 report shows decoder outputs 17 GiB,
+geometry 2.0 GiB, encoding objects 631 MiB and analysis cache 3.5 GiB, plus
+smaller metadata/report directories. These include retained reference outputs.
+Dataset, model cache and frozen-feature directories were not remeasured.
+The shared lab filesystem has 8.8 TiB free; that is not a personal quota or
+reserved capacity. Applying the measured trace sizes to 54 brain and 30 model
+development parents gives about 49.4 GiB of full traces, conditional on comparable
+source/query support. This replaces old multi-hundred-GiB trace extrapolations.
 
 Protocol 2 development/final encoding operator-and-metric array arithmetic is
 approximately 252 decimal GB (235 GiB) before masking, compression and identical-fit
@@ -359,9 +568,11 @@ active ownership and the reproducibility/continuation requirements.
    allocated CPU controller dispatches 30-minute resumable worker arrays, with
    up to two decoder GPUs and four geometry GPUs overlapping (at most six for
    this selected DAG, still subject to the project-wide eight-GPU ceiling).
-   This selected run completed under controller `1026940` in 43:34; collect the
-   cumulative decoder runtimes, per-worker accounting, geometry sizes and cache
-   occupancy next. No new annotation or frozen-state extraction is required.
+   This selected run completed under controller `1026940` in 43:34; cumulative
+   decoder runtimes, accounting, geometry sizes and cache occupancy were then
+   inspected. The five ready derived-RDM/map comparison panels subsequently
+   completed under controller `1027113`, as recorded above. No new annotation
+   or frozen-state extraction is required.
    Inspect packing size, optimizer steps, epoch/validation/checkpoint/export time,
    convergence, peak host/VRAM use and final bytes. Completed eligible outputs
    remain production results; these are not substitute-data experiments.
